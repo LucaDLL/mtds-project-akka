@@ -1,6 +1,6 @@
 package projectMTDS.messages;
 
-public class PutMsg implements JsonSerializable{
+public class PutMsg implements JsonSerializable {
 
     private final String key;
     private final String val;

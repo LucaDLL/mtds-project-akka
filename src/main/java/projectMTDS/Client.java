@@ -1,6 +1,7 @@
 package projectMTDS;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Scanner;
 
 import com.typesafe.config.Config;
@@ -41,13 +42,14 @@ public class Client {
 	public static ActorRef startup(int port) {
 		// Override the configuration of the port
 		final Config config = ConfigFactory //
-			.parseFile(new File("conf/cluster.conf")) //
-			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port));
+			.parseFile(new File("src/main/java/projectMTDS/conf/cluster.conf")) //
+			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
+			.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(Collections.singletonList("client")));
 
 		// Create an Akka system
 		final ActorSystem system = ActorSystem.create("ClusterSystem", config);
 
 		// Create an actor that handles cluster domain events
-		return system.actorOf(ClientActor.props(), "ClientActor");
+		return system.actorOf(ClientActor.props(), "client");
 	}
 }

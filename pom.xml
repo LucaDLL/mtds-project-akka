@@ -30,6 +30,49 @@
 					</compilerArgs>
 				</configuration>
 			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>build-a</id>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>projectMTDS.Server</mainClass>
+								</manifest>
+							</archive>
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<!-- <appendAssemblyId>false</appendAssemblyId> -->
+							<finalName>server</finalName>
+						</configuration>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>build-b</id>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>projectMTDS.Client</mainClass>
+								</manifest>
+							</archive>
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<!-- <appendAssemblyId>false</appendAssemblyId> -->
+							<finalName>client</finalName>
+						</configuration>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 

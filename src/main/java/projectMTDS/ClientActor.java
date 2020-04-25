@@ -19,7 +19,7 @@ public class ClientActor extends AbstractActor {
 	@Override
 	public void preStart() {
 		// #subscribe
-		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);
+        cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);
 	}
 
 	// re-subscribe when restart
@@ -29,7 +29,7 @@ public class ClientActor extends AbstractActor {
     }
     
     private final void onMemberUp(MemberUp mUp) {
-		log.info("Member is Up: {}", mUp.member());
+        log.info("Member is Up: {}", mUp.member());
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
@@ -43,33 +43,31 @@ public class ClientActor extends AbstractActor {
 	private final void onMemberEvent(MemberEvent mEvent) {
 
 	}
-    
+
     private final void onPutMsg(PutMsg putMsg){
-        log.info("Client puts {}", putMsg); //System.out.println("Client puts: " + putMsg);
-        //TODO server tell
-        //server.tell(putMsg, self());
+        log.info("Client puts {}", putMsg);
+        getContext().actorSelection("akka://ClusterSystem@127.0.0.1:25251/user/server").tell(putMsg, self());
     }
 
     private final void onGetMsg(GetMsg getMsg){
-        log.info("Client wants to get {}", getMsg); //System.out.println("Client wants to get: key " + getMsg);
-        //TODO server tell
-        //server.tell(getMsg, self()); 
+        log.info("Client wants to get {}", getMsg);
+        getContext().actorSelection("akka://ClusterSystem@127.0.0.1:25251/user/server").tell(getMsg, self());
     }
 
     private final void onReplyMsg(ReplyMsg replyMsg) {
-        log.info("Client wants to get {}", replyMsg); //System.out.println("Client received: " + replyMsg);
+        log.info("Client received: {}", replyMsg);
     }
     
     @Override
     public Receive createReceive(){
-        return receiveBuilder() 
+        return receiveBuilder()
             .match(MemberUp.class, this::onMemberUp)
             .match(UnreachableMember.class, this::onUnreachableMember)
             .match(MemberRemoved.class, this::onMemberRemoved)
             .match(MemberEvent.class, this::onMemberEvent)
-            .match(PutMsg.class, this::onPutMsg) //
-            .match(GetMsg.class, this::onGetMsg) //
-            .match(ReplyMsg.class, this::onReplyMsg) //
+            .match(PutMsg.class, this::onPutMsg)
+            .match(GetMsg.class, this::onGetMsg)
+            .match(ReplyMsg.class, this::onReplyMsg)
             .build();
     }
 

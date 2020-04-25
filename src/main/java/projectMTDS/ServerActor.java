@@ -34,6 +34,7 @@ public class ServerActor extends AbstractActor {
 
 	private final void onMemberUp(MemberUp mUp) {
 		log.info("Member is Up: {}", mUp.member());
+		log.info((cluster.remotePathOf(self()).toString()));
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
@@ -43,23 +44,25 @@ public class ServerActor extends AbstractActor {
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
 		log.info("Member is Removed: {}", mRemoved.member());
 	}
-
+	
 	private final void onMemberEvent(MemberEvent mEvent) {
 
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
-		//System.out.println("Server received " + putMsg);
 		log.info("Server received {}", putMsg);
 		map.put(putMsg.getKey(), putMsg.getVal());
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
-		//System.out.println("Server received " + getMsg);
 		log.info("Server received {}", getMsg);
 		final String val = map.get(getMsg.getKey());
 		final ReplyMsg reply = new ReplyMsg(val);
 		sender().tell(reply, self());
+	}
+
+	private final void onPrintMsg (PrintMsg printMsg) {
+		log.info(map.toString());
 	}
 
 	@Override
@@ -69,8 +72,9 @@ public class ServerActor extends AbstractActor {
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
-		    .match(PutMsg.class, this::onPutMsg) //
-		    .match(GetMsg.class, this::onGetMsg) //
+		    .match(PutMsg.class, this::onPutMsg)
+			.match(GetMsg.class, this::onGetMsg)
+			.match(PrintMsg.class, this::onPrintMsg)
 		    .build();
 	}
 
