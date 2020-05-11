@@ -1,6 +1,5 @@
 package store;
 
-
 import messages.*;
 import resources.Consts;
 import resources.NodePointer;
@@ -25,7 +24,8 @@ public class StoreNode extends AbstractActor {
 
 	private final NodePointer precedessor;
 	private final NodePointer[] fingerTable;
-	
+	private Boolean updatable;
+
 	//TODO key to biginteger 
 	private final Map<String, String> map;
 
@@ -33,19 +33,16 @@ public class StoreNode extends AbstractActor {
 	private final Cluster cluster;
 	
 	public NodePointer SuccessorNode(BigInteger id) throws Exception {
-		
-		Iterator<Member> members = (cluster.state().getMembers()).iterator();
 
+		Iterator<Member> members = (cluster.state().getMembers()).iterator();
 		Member curr;
 		Member candidateSuccessor = null;
-	
-		BigInteger distance = Consts.ringSize;
+		BigInteger distance = Consts.RING_SIZE;
 		BigInteger candidateDistance;
 
 		while(members.hasNext()){
-			
 			curr = members.next();
-			candidateDistance = Mod(Sha1(GetMemberUniqueAddress(curr)).subtract(id), Consts.ringSize);
+			candidateDistance = Mod(Sha1(GetMemberUniqueAddress(curr)).subtract(id), Consts.RING_SIZE);
 
 			if(candidateDistance.compareTo(distance) == -1){ // if Mod < distance 
 				distance = candidateDistance;
@@ -57,24 +54,39 @@ public class StoreNode extends AbstractActor {
 			throw new Exception("No successor");
 		else	
 			return new NodePointer(GetMemberAddress(candidateSuccessor), Sha1(GetMemberUniqueAddress(candidateSuccessor)));
-
 	}
 
-	private StoreNode() {
+	public void CreateFingerTable() {
+		Iterator<Member> members = (cluster.state().getMembers()).iterator();
+		BigInteger n = Sha1(GetMemberUniqueAddress(cluster.selfMember()));
+		int i = 0;
 
+		try {
+			while(members.hasNext() && i < Consts.ID_LENGTH) {
+				this.fingerTable[i] = SuccessorNode(n.add(Consts.TWO_BIG_INTEGER.pow(i))); //n + 2^(i-1)
+				i++;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+		
+	private StoreNode() {
 		this.precedessor = new NodePointer(null, null);
-		this.fingerTable = new NodePointer[Consts.idLength];
+		this.fingerTable = new NodePointer[Consts.ID_LENGTH];
 		this.map = new HashMap<>();
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		this.cluster = Cluster.get(getContext().getSystem());
-		
-	}	
+		this.updatable = false;
+	}
 
 	// subscribe to cluster changes
 	@Override
 	public void preStart() {
-		// #subscribe
 		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);
+		
+		//TODO: finger table initialization
+		
 	}
 
 	// re-subscribe when restart
@@ -85,6 +97,18 @@ public class StoreNode extends AbstractActor {
 
 	private final void onMemberUp(MemberUp mUp) {
 		log.info("Member is Up: {}", mUp.member());
+		
+		Member selfMember = cluster.selfMember();
+		Member upMember = mUp.member();
+		
+		if(selfMember.equals(upMember)){
+			updatable = true;
+		}
+
+		if(updatable.equals(true)) {
+			//TODO update finger table when new member is up
+		}
+
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
