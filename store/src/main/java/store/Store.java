@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.Collections;
 
 import akka.actor.ActorSystem;
+import akka.cluster.Cluster;
+import akka.cluster.Member;
 import akka.http.javadsl.*;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
@@ -19,6 +21,7 @@ import java.util.concurrent.CompletionStage;
 class Store {
 
   final static Config config = ConfigFactory.parseFile(new File("conf/application.conf"));
+  final static int replicationFactor = Integer.parseInt(config.getString("replication.factor"));
 
   public static void main(String[] args) throws Exception {
 
@@ -27,33 +30,26 @@ class Store {
       if (args[0].equals("init") && args.length == 1) {
 
         /*
-          Start system and seed nodes
+          Start system and seed node
         */
-        ActorSystem sys = startSeedNodes();
-
-        /*
-          Parse replication factor from config
-        */
-        Integer r = Integer.parseInt(config.getString("replication.factor"));
-        
-        /*
-          To have R replicas, at least R cluster nodes are needed.
-          Two seed nodes have been already created, so R-2 more nodes are created.
-        */
-        for (int i = 0; i < r-3; i++) startNode(0);
+        ActorSystem sys = startNode(25251);
         
         /*
           gRPC server binding
         */
         run(sys).thenAccept(binding -> {
-          System.out.println("gRPC server bound to: " + binding.localAddress());
+          System.out.println("gRPC server bound to: " + binding.localAddress() + "\n");
         });
 
-      } else if(args[0].equals("add") && args.length == 2) {
+      } else if (args[0].equals("add") && args.length == 1) {
+      
+        startNode(0);
+      
+      } else if (args[0].equals("add") && args.length == 2) {
   
         try {
-          Integer nodesNum = Integer.parseInt(args[1]);
-          for (int i = 0; i < nodesNum; i++) startNode(0);
+          Integer port = Integer.parseInt(args[1]);
+          startNode(port);
         } catch (NumberFormatException e) {
           throw new Exception();
         }
@@ -77,13 +73,6 @@ class Store {
       mat);
   }
 
-  private static ActorSystem startSeedNodes() {
-
-      startNode(25251);
-      return startNode(25252);
-  
-  }
-
 	private static ActorSystem startNode(int port) {
     
     // Override the configuration of the port
@@ -96,7 +85,7 @@ class Store {
 
 		// Create an actor
     system.actorOf(StoreNode.props(), "storeNode");
-    
+  
     return system;
   }
 
