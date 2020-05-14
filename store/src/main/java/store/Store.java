@@ -27,29 +27,25 @@ class Store {
 
     try {
 
-      if (args[0].equals("init") && args.length == 1) {
-
-        /*
-          Start system and seed node
-        */
-        ActorSystem sys = startNode(25251);
+      if (args[0].equals("init") && args.length == 1) { // Start system and seed node
         
-        /*
-          gRPC server binding
-        */
-        run(sys).thenAccept(binding -> {
+        ActorSystem sys = startNode(25251);
+        run(sys).thenAccept(binding -> { //gRPC server binding
           System.out.println("gRPC server bound to: " + binding.localAddress() + "\n");
         });
 
-      } else if (args[0].equals("add") && args.length == 1) {
-      
+      } else if (args[0].equals("add") && args.length == 1) { // Add one node
+        
         startNode(0);
       
-      } else if (args[0].equals("add") && args.length == 2) {
+      } else if (args[0].equals("add") && args.length == 2) { //Add some nodes
   
         try {
-          Integer port = Integer.parseInt(args[1]);
-          startNode(port);
+          Integer size = Integer.parseInt(args[1]);
+          
+          for(int i = 0; i < size; i++)
+            startNode(0);
+
         } catch (NumberFormatException e) {
           throw new Exception();
         }

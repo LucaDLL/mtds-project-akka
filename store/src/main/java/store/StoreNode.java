@@ -24,11 +24,7 @@ public class StoreNode extends AbstractActor {
 
 	private final NodePointer precedessor;
 	private final NodePointer[] fingerTable;
-	private Boolean updatable;
-
-	//TODO key to biginteger 
 	private final Map<String, String> map;
-
 	private final LoggingAdapter log;
 	private final Cluster cluster;
 	
@@ -56,7 +52,7 @@ public class StoreNode extends AbstractActor {
 			return new NodePointer(GetMemberAddress(candidateSuccessor), Sha1(GetMemberUniqueAddress(candidateSuccessor)));
 	}
 
-	public void CreateFingerTable() {
+	private void CreateFingerTable() {
 		Iterator<Member> members = (cluster.state().getMembers()).iterator();
 		BigInteger n = Sha1(GetMemberUniqueAddress(cluster.selfMember()));
 		int i = 0;
@@ -77,16 +73,13 @@ public class StoreNode extends AbstractActor {
 		this.map = new HashMap<>();
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		this.cluster = Cluster.get(getContext().getSystem());
-		this.updatable = false;
+		//this.updatable = false;
 	}
 
 	// subscribe to cluster changes
 	@Override
 	public void preStart() {
-		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);
-		
-		//TODO: finger table initialization
-		
+		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);		
 	}
 
 	// re-subscribe when restart
@@ -102,11 +95,7 @@ public class StoreNode extends AbstractActor {
 		Member upMember = mUp.member();
 		
 		if(selfMember.equals(upMember)){
-			updatable = true;
-		}
-
-		if(updatable.equals(true)) {
-			//TODO update finger table when new member is up
+			CreateFingerTable();
 		}
 
 	}
@@ -122,6 +111,21 @@ public class StoreNode extends AbstractActor {
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
 	private final void onLookupMsg (LookupMsg lookupMsg) {
+		BigInteger myId = Sha1(GetMemberUniqueAddress(cluster.selfMember()));
+		BigInteger keyId = lookupMsg.getKey();
+		NodePointer candidate = fingerTable[0];
+
+		for(NodePointer np: fingerTable) {
+			BigInteger n = np.getId();
+			if(n.compareTo(myId) == 1 && n.compareTo(keyId) == 1 && n.compareTo(candidate.getId()) == 1){
+				candidate = np;
+			}
+		}
+
+		if (candidate.equals(fingerTable[0]))
+			sender().tell(new LookupReplyMsg(false, candidate.getAddress()), self());
+		else
+			sender().tell(new LookupReplyMsg(true, candidate.getAddress()), self());
 
 	}
 
@@ -133,7 +137,7 @@ public class StoreNode extends AbstractActor {
 	private final void onGetMsg(GetMsg getMsg) {
 		log.info("Server received {}", getMsg);
 		final String val = map.get(getMsg.getKey());
-		final ReplyMsg reply = new ReplyMsg(val);
+		final GetReplyMsg reply = new GetReplyMsg(val);
 		sender().tell(reply, self());
 	}
 
