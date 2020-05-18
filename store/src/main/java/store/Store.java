@@ -31,7 +31,7 @@ class Store {
         
         ActorSystem sys = startNode(25251);
         run(sys).thenAccept(binding -> { //gRPC server binding
-          System.out.println("gRPC server bound to: " + binding.localAddress() + "\n");
+          //System.out.println("gRPC server bound to: " + binding.localAddress() + "\n");
         });
 
       } else if (args[0].equals("add") && args.length == 1) { // Add one node
