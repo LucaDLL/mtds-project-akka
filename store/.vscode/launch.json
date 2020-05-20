@@ -14,7 +14,7 @@
             "type": "java",
             "name": "Debug Store init",
             "request": "launch",
-            "mainClass": "store.Store",
+            "mainClass": "application.Store",
             "projectName": "projectMTDS",
             "args": "init"
         },
@@ -22,7 +22,7 @@
             "type": "java",
             "name": "Debug Store add",
             "request": "launch",
-            "mainClass": "store.Store",
+            "mainClass": "application.Store",
             "projectName": "projectMTDS",
             "args": "add"
         }

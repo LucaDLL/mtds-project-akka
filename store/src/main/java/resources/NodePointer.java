@@ -1,6 +1,10 @@
 package resources;
 
+import akka.cluster.Member;
+
 import java.math.BigInteger;
+
+import static resources.Methods.*;
 
 public class NodePointer {
     
@@ -10,6 +14,11 @@ public class NodePointer {
     public NodePointer(String address, BigInteger id) {        
         this.address = address;
         this.id = id;
+    }
+
+    public NodePointer(Member member) {
+        this.address =  GetMemberAddress(member);
+        this.id = Sha1(GetMemberUniqueAddress(member));
     }
 
     public String getAddress() {
