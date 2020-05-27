@@ -37,9 +37,26 @@ public class NodePointer {
         this.id = id;
     }
 
+    public Boolean isEmpty() {
+        return (this.address == null) && (this.id == null);
+    }
+
     @Override
     public String toString() {
-        return "NodePointer [identifier=" + id + "address=" + address + "]";
+        return "NodePointer [Identifier=" + id + ", Address=" + address + "]";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || obj.getClass() != this.getClass()) {
+            return false;
+        }
+
+        NodePointer np = (NodePointer) obj;
+        return (this.address).equals(np.getAddress()) && (this.id).equals(np.getId());
     }
 
 }

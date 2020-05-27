@@ -15,6 +15,9 @@ public class Methods {
     }
 
     public static String GetMemberUniqueAddress(Member member) {
+        /*
+            For hashing
+        */
         return new String(member.uniqueAddress().toString());
     }
 
@@ -36,63 +39,45 @@ public class Methods {
         while(candidate.equals(member) && iterator.hasNext())
             candidate = iterator.next();
 
+        if (candidate.equals(member))
+            return new NodePointer(null, null);
+        else
+            return new NodePointer(candidate);
+    }
+
+    public static NodePointer ImplNode(Cluster cluster) {
+        /*
+            To be used in StoreServiceImpl
+        */
+        Iterator<Member> iterator =  (cluster.state().getMembers()).iterator();
+        Member candidate = iterator.next();
+
         return new NodePointer(candidate);
     }
 
     public static boolean idBelongsToIntervalCircle(boolean leftIncluded, boolean rightIncluded, BigInteger id, BigInteger nodeId, BigInteger successorId) {
         /*
             Context: nodes in ring.
-            TODO add explanation, left and right included
         */
         BigInteger successorIdTemp;
 
-        if(successorId.compareTo(nodeId) == -1)
+        if(successorId.compareTo(nodeId) == 0)
+            return true;
+        else if(successorId.compareTo(nodeId) == -1)
             successorIdTemp = successorId.add(Consts.RING_SIZE);
         else
             successorIdTemp = successorId;
 
-        if(nodeId.compareTo(successorIdTemp) == 0 || (id.compareTo(nodeId) == 1 && id.compareTo(successorIdTemp) == -1)) 
-            return true;
-        else
-            return false;
-    }
-
-
-    //public static NodePointer FindSuccessor(NodePointer n, BigInteger id) throws Exception {
-        /*
-            n.find_successor(id)
-                if( id \in (n, successor])
-                    return successor;
-                else
-                    n' = closest_preceding_node(id);
-                    return n'.find_successor(id);
-        */
-
-        
-
-
-
-    //}
-
-    /*
-    private ActorSelection lookup(String key) throws Exception {
-
-        Member member = (cluster.state().getMembers()).iterator().next();
-        ActorSelection node = system.actorSelection(GetMemberAddress(member));
-        LookupMsg lookupMsg = new LookupMsg(Sha1(key));
-        Boolean continueLookup = true;
-
-        while (continueLookup){
-            final Future<Object> reply = Patterns.ask(node, lookupMsg, 1000);
-            LookupReplyMsg replyMsg = (LookupReplyMsg) Await.result(reply, Duration.Inf());
-            node = system.actorSelection(replyMsg.getAddress());
-            continueLookup = replyMsg.getContinueLookup();
+        if(!leftIncluded & !rightIncluded){
+            return (id.compareTo(nodeId) == 1 && id.compareTo(successorIdTemp) == -1);
+        } else if (!leftIncluded & rightIncluded) {
+            return (id.compareTo(nodeId) == 1 && id.compareTo(successorIdTemp) != 1);
+        } else if (leftIncluded & !rightIncluded) {
+            return (id.compareTo(nodeId) != -1 && id.compareTo(successorIdTemp) == -1);
+        } else { // both true
+            return (id.compareTo(nodeId) != -1 && id.compareTo(successorIdTemp) != 1);
         }
-
-        return node;
+        
     }
-    */
-
-
     
 }
