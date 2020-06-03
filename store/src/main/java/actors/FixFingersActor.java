@@ -1,0 +1,39 @@
+package actors;
+
+import messages.*;
+
+import akka.actor.AbstractActor;
+import akka.actor.ActorRef;
+import akka.actor.Props;
+
+import java.time.Duration;
+
+public class FixFingersActor extends AbstractActor {
+    
+    private final ActorRef nodeActor;
+
+	private FixFingersActor(ActorRef nodeActor) {
+
+		this.nodeActor = nodeActor;
+		
+		getContext().getSystem().scheduler() .scheduleWithFixedDelay(
+			Duration.ofMillis(3000),
+			Duration.ofMillis(500), 
+			nodeActor, 
+			new FixFingersMsg(), 
+			getContext().getSystem().dispatcher(), 
+			ActorRef.noSender());
+	}
+
+
+	@Override
+	public Receive createReceive() {
+		return receiveBuilder()
+		    .build();
+	}
+
+	public static final Props props(ActorRef nodeActor) {
+		return Props.create(FixFingersActor.class, nodeActor);
+	}
+    
+}
