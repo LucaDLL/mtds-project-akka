@@ -3,15 +3,15 @@ package messages;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 public class GetMsg implements JsonSerializable {
-
-    private final String key;
+    
+    private final Integer key;
 
     @JsonCreator
-    public GetMsg(String key) {
+    public GetMsg(Integer key) {
         this.key = key;
     }
 
-    public String getKey() {
+    public Integer getKey() {
         return key;
     }
 

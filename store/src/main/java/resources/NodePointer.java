@@ -2,39 +2,24 @@ package resources;
 
 import akka.cluster.Member;
 
-import java.math.BigInteger;
-
 import static resources.Methods.*;
 
-public class NodePointer {
+public class NodePointer implements Comparable<NodePointer> {
     
-    private String address;
-    private BigInteger id;
+    private final String address;
+    private final Integer id;
     
-    public NodePointer(String address, BigInteger id) {        
-        this.address = address;
-        this.id = id;
-    }
-
     public NodePointer(Member member) {
         this.address =  GetMemberAddress(member);
-        this.id = Sha1(GetMemberUniqueAddress(member));
+        this.id = GetMemberUniqueAddress(member).hashCode();
     }
 
     public String getAddress() {
         return address;
     }
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public BigInteger getId() {
+    public Integer getId() {
         return id;
-    }
-
-    public void setId(BigInteger id) {
-        this.id = id;
     }
 
     public Boolean isEmpty() {
@@ -44,6 +29,21 @@ public class NodePointer {
     @Override
     public String toString() {
         return "NodePointer [Identifier=" + id + ", Address=" + address + "]";
+    }
+
+    @Override
+    public int compareTo(NodePointer otherPointer){
+        return (this.getId() -  otherPointer.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result
+                + ((address == null) ? 0 : address.hashCode());
+        result = prime * result + id;
+        return result;
     }
 
     @Override

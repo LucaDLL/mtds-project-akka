@@ -2,15 +2,15 @@ package messages;
 
 public class PutMsg implements JsonSerializable {
 
-    private final String key;
+    private final Integer key;
     private final String val;
 
-    public PutMsg(String key, String val){
+    public PutMsg(Integer key, String val){
         this.key = key;
         this.val = val;
     }
 
-    public String getKey() {
+    public Integer getKey() {
         return key;
     }
 

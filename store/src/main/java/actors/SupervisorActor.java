@@ -1,6 +1,7 @@
 package actors;
 
 import messages.*;
+import resources.NodePointer;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;
@@ -10,19 +11,18 @@ import akka.cluster.ClusterEvent.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.TreeSet;
 
-public class NodeActor extends AbstractActor {
+public class SupervisorActor extends AbstractActor {
 
-	private final LoggingAdapter log;
-	private final Cluster cluster;
-	private Map<Integer, String> map;
-
-	private NodeActor() {
+    private final LoggingAdapter log;
+    private final Cluster cluster;
+    private TreeSet<NodePointer> nodes;
+    
+	private SupervisorActor() {
 		log = Logging.getLogger(getContext().getSystem(), this);
 		cluster = Cluster.get(getContext().getSystem());
-		this.map = new HashMap<>();
+		this.nodes = new TreeSet<>();
 	}
 
 	// subscribe to cluster changes
@@ -52,15 +52,11 @@ public class NodeActor extends AbstractActor {
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
 	private final void onPutMsg(PutMsg putMsg) {
-		log.warning("{} RECEIVED {}", self().path(), putMsg);
-		map.put(putMsg.getKey(), putMsg.getVal());
+
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
-		log.warning("{} received {}", self().path(), getMsg);
-		final String val = map.get(getMsg.getKey());
-		final GetReplyMsg reply = new GetReplyMsg(val);
-		sender().tell(reply, self());
+		sender().tell(new GetReplyMsg("Received get!"), self());
 	}
 
 	@Override
@@ -76,6 +72,6 @@ public class NodeActor extends AbstractActor {
 	}
 
 	public static final Props props() {
-		return Props.create(NodeActor.class);
+		return Props.create(SupervisorActor.class);
 	}
 }

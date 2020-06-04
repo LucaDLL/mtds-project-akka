@@ -2,16 +2,10 @@ package application;
 
 import grpc.*;
 import messages.*;
-import static resources.Methods.*;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
-import akka.actor.ActorSystem;
-import akka.cluster.Cluster;
-import akka.cluster.Member;
 import akka.pattern.Patterns;
 
-import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -21,57 +15,44 @@ import scala.concurrent.duration.Duration;
 
 public class StoreServiceImpl implements StoreService {
     
-    ActorSystem system;
-    Cluster cluster;
+    ActorRef supervisor;
 
-    StoreServiceImpl(ActorSystem system) {
-        this.system = system;
-        this.cluster = Cluster.get(system);
+    StoreServiceImpl(ActorRef supervisor) {
+        this.supervisor = supervisor;
     }
 
-    
     @Override
     public CompletionStage<PutReply> put(PutRequest incomingPutRequest){
         
-        PutMsg msg = new PutMsg(incomingPutRequest.getKey(), incomingPutRequest.getValue());
-        BigInteger id = Sha1(incomingPutRequest.getKey());
-        ActorSelection lookupNode = system.actorSelection(ImplNode(cluster).getAddress());
-        PutReply clientReply;
+        PutMsg putMsg = new PutMsg(incomingPutRequest.getKey().hashCode(), incomingPutRequest.getValue());
+        
+        supervisor.tell(putMsg,ActorRef.noSender()); 
 
-		final Future<Object> reply = Patterns.ask(lookupNode, new FindSuccessorMsg(id), 1000000000);
-        try {
-            FindSuccessorReplyMsg replyMsg = (FindSuccessorReplyMsg) Await.result(reply, Duration.Inf());
-            ActorSelection storageNode = system.actorSelection(replyMsg.getNodePointer().getAddress());
-            storageNode.tell(msg, ActorRef.noSender());
-            clientReply = PutReply.newBuilder().setMessage("Received put(key: " + incomingPutRequest.getKey() + ", value: " + incomingPutRequest.getValue() + ")").build();
-        } catch (final Exception e) {
-            e.printStackTrace();
-            clientReply = PutReply.newBuilder().setMessage("Failed").build();
-        }
-        return CompletableFuture.completedFuture(clientReply);
+        PutReply putReply = PutReply.newBuilder().setMessage(
+            "Received put(key: " + incomingPutRequest.getKey() + 
+            ", value: " + incomingPutRequest.getValue() + ")"
+        ).build();
+
+        return CompletableFuture.completedFuture(putReply);
     }
 
     @Override
     public CompletionStage<GetReply> get(GetRequest incomingGetRequest) {
         
-        GetMsg msg = new GetMsg(incomingGetRequest.getKey());
-        BigInteger id = Sha1(incomingGetRequest.getKey());
-        ActorSelection lookupNode = system.actorSelection(ImplNode(cluster).getAddress());
-        GetReply clientReply;
+        GetMsg msg = new GetMsg(incomingGetRequest.getKey().hashCode());
+        GetReply getReply;
 
-        final Future<Object> reply = Patterns.ask(lookupNode, new FindSuccessorMsg(id), 1000);
+        final Future<Object> reply = Patterns.ask(supervisor, msg, 1000);
         try {
-            FindSuccessorReplyMsg replyMsg = (FindSuccessorReplyMsg) Await.result(reply, Duration.Inf());
-            ActorSelection storageNode = system.actorSelection(replyMsg.getNodePointer().getAddress());
-            final Future<Object> nodeReply = Patterns.ask(storageNode, msg, 1000);
-            GetReplyMsg getReplyMsg = (GetReplyMsg) Await.result(nodeReply, Duration.Inf());
-            clientReply = GetReply.newBuilder().setMessage("Get result: " + getReplyMsg.getContent()).build();
+            GetReplyMsg getReplyMsg = (GetReplyMsg) Await.result(reply, Duration.Inf());
+            getReply = GetReply.newBuilder().setMessage(
+                "Get result: " + getReplyMsg.getVal()
+            ).build();
         } catch (Exception e) {
-            e.printStackTrace();
-            clientReply = GetReply.newBuilder().setMessage("Failed").build();
+            getReply = GetReply.newBuilder().setMessage("Failed").build();
         }
         
-        return CompletableFuture.completedFuture(clientReply);
+        return CompletableFuture.completedFuture(getReply);
     }
 
 }
