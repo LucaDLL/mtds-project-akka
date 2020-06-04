@@ -7,6 +7,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class FixFingersActor extends AbstractActor {
     
@@ -17,8 +18,8 @@ public class FixFingersActor extends AbstractActor {
 		this.nodeActor = nodeActor;
 		
 		getContext().getSystem().scheduler() .scheduleWithFixedDelay(
-			Duration.ofMillis(3000),
-			Duration.ofMillis(500), 
+			Duration.ofMillis(ThreadLocalRandom.current().nextInt(500, 1500 + 1)),
+			Duration.ofMillis(100), 
 			nodeActor, 
 			new FixFingersMsg(), 
 			getContext().getSystem().dispatcher(), 

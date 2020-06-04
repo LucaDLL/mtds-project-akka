@@ -15,7 +15,8 @@ public class DebugActor extends AbstractActor {
 	private DebugActor(ActorRef nodeActor) {
 
 		this.nodeActor = nodeActor;
-
+		
+		/*
 		getContext().getSystem().scheduler() .scheduleWithFixedDelay(
 			Duration.ofMillis(2000),
 			Duration.ofMillis(2000), 
@@ -23,6 +24,7 @@ public class DebugActor extends AbstractActor {
 			new DebugMsg(), 
 			getContext().getSystem().dispatcher(), 
 			ActorRef.noSender());
+		*/
 	}
 
 	@Override

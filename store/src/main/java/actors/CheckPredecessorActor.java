@@ -7,6 +7,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class CheckPredecessorActor extends AbstractActor {
     
@@ -17,8 +18,8 @@ public class CheckPredecessorActor extends AbstractActor {
 		this.nodeActor = nodeActor;
 		
 		getContext().getSystem().scheduler() .scheduleWithFixedDelay(
-			Duration.ofMillis(1000),
-			Duration.ofMillis(1000), 
+			Duration.ofMillis(ThreadLocalRandom.current().nextInt(500, 1500 + 1)),
+			Duration.ofMillis(300), 
 			nodeActor, 
 			new CheckPredecessorMsg(), 
 			getContext().getSystem().dispatcher(), 

@@ -59,6 +59,7 @@ public class Methods {
         /*
             Context: nodes in ring.
         */
+        /*
         BigInteger successorIdTemp;
 
         if(successorId.compareTo(nodeId) == 0)
@@ -76,6 +77,21 @@ public class Methods {
             return (id.compareTo(nodeId) != -1 && id.compareTo(successorIdTemp) == -1);
         } else { // both true
             return (id.compareTo(nodeId) != -1 && id.compareTo(successorIdTemp) != 1);
+        }
+        */
+
+        if(successorId.compareTo(nodeId) != 1)
+            return true;
+        else{
+            if(!leftIncluded & !rightIncluded){
+                return (id.compareTo(nodeId) == 1 && id.compareTo(successorId) == -1);
+            } else if (!leftIncluded & rightIncluded) {
+                return (id.compareTo(nodeId) == 1 && id.compareTo(successorId) != 1);
+            } else if (leftIncluded & !rightIncluded) {
+                return (id.compareTo(nodeId) != -1 && id.compareTo(successorId) == -1);
+            } else { // both true
+                return (id.compareTo(nodeId) != -1 && id.compareTo(successorId) != 1);
+            }
         }
         
     }
