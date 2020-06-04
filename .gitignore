@@ -124,7 +124,7 @@ buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
 ### VisualStudioCode ###
-.vscode/
+.vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -478,4 +478,3 @@ healthchecksdb
 MigrationBackup/
 
 # End of https://www.toptal.com/developers/gitignore/api/java,linux,maven,visualstudio,visualstudiocode,eclipse
-
