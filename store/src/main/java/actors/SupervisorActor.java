@@ -51,11 +51,17 @@ public class SupervisorActor extends AbstractActor {
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
-	private final void onPutMsg(PutMsg putMsg) {
+	private final void onRegistrationMsg(RegistrationMsg registrationMsg) {
+		log.warning("REGISTERING {}", registrationMsg.getMemberAddress());
+		nodes.add(new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId()));
+	}
 
+	private final void onPutMsg(PutMsg putMsg) {
+		sender().tell(new GetReplyMsg("Received put!"), self());
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
+		log.warning("{}", nodes.first().toString());
 		sender().tell(new GetReplyMsg("Received get!"), self());
 	}
 
@@ -66,6 +72,7 @@ public class SupervisorActor extends AbstractActor {
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
+			.match(RegistrationMsg.class, this::onRegistrationMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
 		    .build();

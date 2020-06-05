@@ -9,8 +9,13 @@ public class NodePointer implements Comparable<NodePointer> {
     private final String address;
     private final Integer id;
     
+    public NodePointer(String address, Integer id) {
+        this.address = address;
+        this.id = id;
+    }
+
     public NodePointer(Member member) {
-        this.address =  GetMemberAddress(member);
+        this.address =  GetMemberAddress(member, Consts.NODE_ACTOR_SUFFIX);
         this.id = GetMemberUniqueAddress(member).hashCode();
     }
 

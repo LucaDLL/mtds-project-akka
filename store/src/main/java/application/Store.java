@@ -41,30 +41,23 @@ class Store {
 				/*
 					Add one node, random port
 				*/
-
-				/* TODO
 				startNode(0);
-				*/
+
       		} else if (args[0].equals("add") && args.length == 2) {
 				/*
 					Add some nodes, random ports
 				*/
-				/* TODO
 				try {
 					Integer size = Integer.parseInt(args[1]);
-					for(int i = 0; i < size; i++)
-						startNode(0);
-
+					for(int i = 0; i < size; i++) startNode(0);
 				} catch (NumberFormatException e) {
 					throw new Exception();
 				}
-				*/
-			} else 
+			} else
 				/*
 					Invalid input
 				*/
 				throw new Exception();
-
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -98,6 +91,23 @@ class Store {
 			ConnectHttp.toHost(rpcAddress, rpcPort),
 			mat
 		);
+	}
+
+	private static void startNode(int port) {
+		/*
+			Override the configuration of the port
+		*/
+		final Config nodeConfig = config
+			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
+			.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(Collections.singletonList(Consts.NODE_ACTOR_NAME)));
+		/*
+			Create an Akka system
+		*/
+		final ActorSystem system = ActorSystem.create(Consts.SYSTEM_NAME, nodeConfig);
+		/*
+			Create an actor
+		*/
+		system.actorOf(NodeActor.props(), Consts.NODE_ACTOR_NAME);
 	}
 	
 }

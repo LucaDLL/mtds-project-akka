@@ -1,8 +1,14 @@
 package actors;
 
 import messages.*;
+import resources.Consts;
+import resources.NodePointer;
+
+import static resources.Methods.*;
 
 import akka.actor.AbstractActor;
+import akka.actor.ActorRef;
+import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -17,6 +23,7 @@ public class NodeActor extends AbstractActor {
 
 	private final LoggingAdapter log;
 	private final Cluster cluster;
+	private ActorSelection supervisor;
 	private Map<Integer, String> map;
 
 	private NodeActor() {
@@ -39,6 +46,13 @@ public class NodeActor extends AbstractActor {
 
 	private final void onMemberUp(MemberUp mUp) {
 		log.info("MEMBER {} IS UP", mUp.member());
+
+		if(mUp.member().hasRole(Consts.SUPERVISOR_ACTOR_NAME)){
+			log.warning("SENDING REGISTRATION MSG");
+			supervisor = getContext().getSystem().actorSelection(GetMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
+			NodePointer selfPointer = new NodePointer(cluster.selfMember());
+			supervisor.tell(new RegistrationMsg(selfPointer.getAddress(), selfPointer.getId()), ActorRef.noSender());
+		}
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
