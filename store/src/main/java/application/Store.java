@@ -1,6 +1,10 @@
 package application;
 
 import actors.*;
+import grpc.*;
+import resources.Consts;
+import static resources.Methods.*;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.http.javadsl.*;
@@ -11,12 +15,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import grpc.*;
-import resources.Consts;
 
 import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.CompletionStage;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 class Store {
 	final static Config config = ConfigFactory.parseFile(new File("conf/application.conf"));
@@ -63,11 +68,12 @@ class Store {
 		}
 	}
 
-	private static ActorSystem startSystem() {
+	private static ActorSystem startSystem() throws UnknownHostException {
 		/*
 			Override the configuration of the port
 		*/
 		final Config supervisorConfig = config
+			.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef(getLocalHostLANAddress().getHostAddress()))
 			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(seedPort))
 			.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(Collections.singletonList(Consts.SUPERVISOR_ACTOR_NAME)));
 		/*
@@ -93,11 +99,12 @@ class Store {
 		);
 	}
 
-	private static void startNode(int port) {
+	private static void startNode(int port) throws UnknownHostException {
 		/*
 			Override the configuration of the port
 		*/
 		final Config nodeConfig = config
+			.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef(getLocalHostLANAddress().getHostAddress()))
 			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
 			.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(Collections.singletonList(Consts.NODE_ACTOR_NAME)));
 		/*
@@ -109,5 +116,5 @@ class Store {
 		*/
 		system.actorOf(NodeActor.props(), Consts.NODE_ACTOR_NAME);
 	}
-	
+
 }
