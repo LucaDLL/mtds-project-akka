@@ -1,8 +1,8 @@
 package resources;
 
-import akka.cluster.Member;
-
 import static resources.Methods.*;
+
+import akka.cluster.Member;
 
 public class NodePointer implements Comparable<NodePointer> {
     
@@ -16,7 +16,7 @@ public class NodePointer implements Comparable<NodePointer> {
 
     public NodePointer(Member member) {
         this.address =  GetMemberAddress(member, Consts.NODE_ACTOR_SUFFIX);
-        this.id = GetMemberUniqueAddress(member).hashCode();
+        this.id = Hash(GetMemberUniqueAddress(member));
     }
 
     public String getAddress() {
@@ -38,7 +38,7 @@ public class NodePointer implements Comparable<NodePointer> {
 
     @Override
     public int compareTo(NodePointer otherPointer){
-        return (this.getId() -  otherPointer.getId());
+        return Integer.compareUnsigned(this.getId(), otherPointer.getId());
     }
 
     @Override

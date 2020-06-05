@@ -2,6 +2,7 @@ package application;
 
 import grpc.*;
 import messages.*;
+import static resources.Methods.*;
 
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
@@ -24,7 +25,7 @@ public class StoreServiceImpl implements StoreService {
     @Override
     public CompletionStage<PutReply> put(PutRequest incomingPutRequest){
         
-        PutMsg putMsg = new PutMsg(incomingPutRequest.getKey().hashCode(), incomingPutRequest.getValue());
+        PutMsg putMsg = new PutMsg(Hash(incomingPutRequest.getKey()), incomingPutRequest.getValue());
         
         supervisor.tell(putMsg,ActorRef.noSender()); 
 
@@ -39,7 +40,7 @@ public class StoreServiceImpl implements StoreService {
     @Override
     public CompletionStage<GetReply> get(GetRequest incomingGetRequest) {
         
-        GetMsg msg = new GetMsg(incomingGetRequest.getKey().hashCode());
+        GetMsg msg = new GetMsg(Hash(incomingGetRequest.getKey()));
         GetReply getReply;
 
         final Future<Object> reply = Patterns.ask(supervisor, msg, 1000);
@@ -53,6 +54,13 @@ public class StoreServiceImpl implements StoreService {
         }
         
         return CompletableFuture.completedFuture(getReply);
+    }
+
+    @Override
+    public CompletionStage<DebugReply> debug(DebugRequest incomingDebugRequest) {
+        supervisor.tell(new DebugMsg(),ActorRef.noSender()); 
+        DebugReply DebugMsg = DebugReply.newBuilder().setMessage("Debug").build();
+        return CompletableFuture.completedFuture(DebugMsg);
     }
 
 }

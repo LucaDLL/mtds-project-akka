@@ -47,8 +47,12 @@ public class NodeActor extends AbstractActor {
 	private final void onMemberUp(MemberUp mUp) {
 		log.info("MEMBER {} IS UP", mUp.member());
 
+		if(mUp.member().equals(cluster.selfMember())){
+			log.warning("MEMBER {} IS UP", cluster.selfMember());
+		}
+
 		if(mUp.member().hasRole(Consts.SUPERVISOR_ACTOR_NAME)){
-			log.warning("SENDING REGISTRATION MSG");
+			log.info("SENDING REGISTRATION MSG");
 			supervisor = getContext().getSystem().actorSelection(GetMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
 			NodePointer selfPointer = new NodePointer(cluster.selfMember());
 			supervisor.tell(new RegistrationMsg(selfPointer.getAddress(), selfPointer.getId()), ActorRef.noSender());
@@ -71,10 +75,13 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
+		log.warning("NUMBER OF ENTRIES {}", map.size());
+		/*
 		log.warning("{} received {}", self().path(), getMsg);
 		final String val = map.get(getMsg.getKey());
 		final GetReplyMsg reply = new GetReplyMsg(val);
 		sender().tell(reply, self());
+		*/
 	}
 
 	@Override

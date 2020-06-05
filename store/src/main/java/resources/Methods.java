@@ -8,6 +8,8 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 
+import org.apache.commons.codec.digest.MurmurHash3;
+
 public class Methods {
 
     public static InetAddress getLocalHostLANAddress() throws UnknownHostException {
@@ -66,5 +68,9 @@ public class Methods {
             For hashing
         */
         return new String(member.uniqueAddress().toString());
-    }
+	}
+	
+	public static int Hash(String value) {
+		return MurmurHash3.hash32x86(value.getBytes());
+	}
 }

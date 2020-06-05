@@ -7,8 +7,8 @@ package store;
 
 service StoreService {
     rpc Put (PutRequest) returns (PutReply) {};
-
     rpc Get (GetRequest) returns (GetReply) {};
+    rpc Debug (DebugRequest) returns (DebugReply) {};
 }
 
 message PutRequest {
@@ -25,5 +25,13 @@ message GetRequest {
 }
 
 message GetReply {
+    string message = 1;
+}
+
+message DebugRequest {
+    string message = 1;
+}
+
+message DebugReply {
     string message = 1;
 }

@@ -4,14 +4,22 @@ import messages.*;
 import resources.NodePointer;
 
 import akka.actor.AbstractActor;
+import akka.actor.ActorRef;
+import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.ClusterEvent.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import akka.pattern.Patterns;
 
+import java.util.Iterator;
 import java.util.TreeSet;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 
 public class SupervisorActor extends AbstractActor {
 
@@ -39,6 +47,10 @@ public class SupervisorActor extends AbstractActor {
 
 	private final void onMemberUp(MemberUp mUp) {
 		log.info("MEMBER {} IS UP", mUp.member());
+
+		if(mUp.member().equals(cluster.selfMember())){
+			log.warning("MEMBER {} IS UP", cluster.selfMember());
+		}
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
@@ -52,17 +64,30 @@ public class SupervisorActor extends AbstractActor {
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
 	private final void onRegistrationMsg(RegistrationMsg registrationMsg) {
-		log.warning("REGISTERING {}", registrationMsg.getMemberAddress());
+		log.info("REGISTERING {}", registrationMsg.getMemberAddress());
 		nodes.add(new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId()));
 	}
 
-	private final void onPutMsg(PutMsg putMsg) {
-		sender().tell(new GetReplyMsg("Received put!"), self());
+	private final void onPutMsg(PutMsg putMsg) {	
+		NodePointer target = TargetSelection(putMsg.getKey());
+		ActorSelection a = getContext().getSystem().actorSelection(target.getAddress());
+		a.tell(putMsg, ActorRef.noSender());
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
-		log.warning("{}", nodes.first().toString());
-		sender().tell(new GetReplyMsg("Received get!"), self());
+		NodePointer target = TargetSelection(getMsg.getKey());
+		ActorSelection a = getContext().getSystem().actorSelection(target.getAddress());
+		final Future<Object> reply = Patterns.ask(a, getMsg, 1000);
+		try {
+			GetReplyMsg getReplyMsg = (GetReplyMsg) Await.result(reply, Duration.Inf());
+			sender().tell(getReplyMsg, self());
+		} catch (final Exception e) {
+			log.info("FAILED GET");
+		}
+	}
+
+	private final void onDebugMsg(DebugMsg debugMsg) {
+		log.warning("DEBUG!");
 	}
 
 	@Override
@@ -75,10 +100,17 @@ public class SupervisorActor extends AbstractActor {
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
+			.match(DebugMsg.class, this::onDebugMsg)
 		    .build();
 	}
 
 	public static final Props props() {
 		return Props.create(SupervisorActor.class);
+	}
+
+	private NodePointer TargetSelection(Integer value) {
+		NodePointer candidate = nodes.higher(new NodePointer("", value));
+		if(candidate == null) candidate = nodes.first();
+		return candidate;
 	}
 }
