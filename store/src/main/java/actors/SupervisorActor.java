@@ -24,12 +24,12 @@ public class SupervisorActor extends AbstractActor {
 
     private final LoggingAdapter log;
     private final Cluster cluster;
-    private TreeSet<NodePointer> nodes;
+    private TreeSet<NodePointer> leaderNodes;
     
 	private SupervisorActor() {
 		log = Logging.getLogger(getContext().getSystem(), this);
 		cluster = Cluster.get(getContext().getSystem());
-		this.nodes = new TreeSet<>();
+		this.leaderNodes = new TreeSet<>();
 	}
 
 	// subscribe to cluster changes
@@ -65,14 +65,14 @@ public class SupervisorActor extends AbstractActor {
 		
 		NodePointer np = new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId());
 		
-		if(!nodes.isEmpty()){
+		if(!leaderNodes.isEmpty()){
 			log.info("SENDING JOIN INIT TO {}", sender());
-			NodePointer successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
+			NodePointer successor = (leaderNodes.ceiling(np) != null) ? leaderNodes.ceiling(np) : leaderNodes.first();
 			JoinInitMsg msg = new JoinInitMsg(successor.getAddress(), successor.getId());
 			sender().tell(msg, ActorRef.noSender());
 		}
 
-		nodes.add(np);
+		leaderNodes.add(np);
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {	
@@ -94,7 +94,7 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
-		for(NodePointer np : nodes){
+		for(NodePointer np : leaderNodes){
 			ActorSelection a = getContext().getSystem().actorSelection(np.getAddress());
 			a.tell(debugMsg, ActorRef.noSender());
 		}
@@ -120,6 +120,6 @@ public class SupervisorActor extends AbstractActor {
 
 	private NodePointer TargetSelection(Integer value) {
 		NodePointer np = new NodePointer("", value);
-		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
+		return (leaderNodes.higher(np) != null) ? leaderNodes.higher(np) : leaderNodes.first();
 	}
 }
