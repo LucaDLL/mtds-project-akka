@@ -14,7 +14,6 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 
-import java.util.Iterator;
 import java.util.TreeSet;
 
 import scala.concurrent.Await;
@@ -46,26 +45,34 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onMemberUp(MemberUp mUp) {
-		log.info("MEMBER {} IS UP", mUp.member());
-
 		if(mUp.member().equals(cluster.selfMember())){
 			log.warning("MEMBER {} IS UP", cluster.selfMember());
 		}
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
-		log.info("MEMBER {} DETECTED AS UNREACHABLE", mUnreachable.member());
+		log.warning("MEMBER {} DETECTED AS UNREACHABLE", mUnreachable.member());
 	}
 
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
-		log.info("MEMBER {} IS REMOVED", mRemoved.member());
+		log.warning("MEMBER {} IS REMOVED", mRemoved.member());
 	}
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
 	private final void onRegistrationMsg(RegistrationMsg registrationMsg) {
 		log.info("REGISTERING {}", registrationMsg.getMemberAddress());
-		nodes.add(new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId()));
+		
+		NodePointer np = new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId());
+		
+		if(!nodes.isEmpty()){
+			log.info("SENDING JOIN INIT TO {}", sender());
+			NodePointer successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
+			JoinInitMsg msg = new JoinInitMsg(successor.getAddress(), successor.getId());
+			sender().tell(msg, ActorRef.noSender());
+		}
+
+		nodes.add(np);
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {	
@@ -87,7 +94,10 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
-		log.warning("DEBUG!");
+		for(NodePointer np : nodes){
+			ActorSelection a = getContext().getSystem().actorSelection(np.getAddress());
+			a.tell(debugMsg, ActorRef.noSender());
+		}
 	}
 
 	@Override
@@ -109,8 +119,7 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private NodePointer TargetSelection(Integer value) {
-		NodePointer candidate = nodes.higher(new NodePointer("", value));
-		if(candidate == null) candidate = nodes.first();
-		return candidate;
+		NodePointer np = new NodePointer("", value);
+		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
 	}
 }

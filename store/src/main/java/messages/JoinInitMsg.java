@@ -1,19 +1,18 @@
 package messages;
 
-import resources.NodePointer;
-
-public class RegistrationMsg implements JsonSerializable {
+public class JoinInitMsg implements JsonSerializable {
+    
     private final String memberAddress;
     private final Integer memberId;
 
-    public RegistrationMsg(String memberAddress, Integer memberId) {
+    public JoinInitMsg(String memberAddress, Integer memberId) {
         this.memberAddress = memberAddress;
         this.memberId = memberId;
     }
 
     @Override
     public String toString() {
-        return "RegistrationMsg [memberAddress=" + memberAddress + ", memberId=" + memberId + "]";
+        return "JoinInitMsg [memberAddress=" + memberAddress + ", memberId=" + memberId + "]";
     }
 
     public String getMemberAddress() {
@@ -23,4 +22,5 @@ public class RegistrationMsg implements JsonSerializable {
     public Integer getMemberId() {
         return memberId;
     }
+
 }
