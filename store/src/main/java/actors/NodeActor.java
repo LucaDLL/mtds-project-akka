@@ -32,7 +32,6 @@ public class NodeActor extends AbstractActor {
 	private final NodePointer selfPointer;
 	private ActorSelection supervisor;
 	
-
 	private NodeActor() {
 		cluster = Cluster.get(getContext().getSystem());
 		log = Logging.getLogger(getContext().getSystem(), this);

@@ -6,8 +6,8 @@ import akka.cluster.Member;
 
 public class NodePointer implements Comparable<NodePointer> {
     
-    private final String address;
-    private final Integer id;
+    private String address;
+    private Integer id;
     
     public NodePointer(String address, Integer id) {
         this.address = address;
@@ -25,6 +25,14 @@ public class NodePointer implements Comparable<NodePointer> {
 
     public Integer getId() {
         return id;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public Boolean isEmpty() {

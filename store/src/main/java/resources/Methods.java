@@ -1,7 +1,13 @@
 package resources;
+import actors.*;
 
+import akka.actor.ActorSystem;
 import akka.cluster.Member;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
+import java.util.Collections;
 import java.util.Enumeration;
 
 import java.net.InetAddress;
@@ -57,6 +63,38 @@ public class Methods {
 			unknownHostException.initCause(e);
 			throw unknownHostException;
 		}
+	}
+
+	public static ActorSystem startSystem() throws UnknownHostException {
+		/*
+			Override the configuration of the port
+		*/
+		final Config supervisorConfig = Consts.CONFIG
+			.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef(getLocalHostLANAddress().getHostAddress()))
+			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(Consts.SEED_PORT))
+			.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(Collections.singletonList(Consts.SUPERVISOR_ACTOR_NAME)));
+		/*
+			Create an Akka system
+		*/
+		return ActorSystem.create(Consts.SYSTEM_NAME, supervisorConfig);
+	}
+
+	public static void startNode(int port) throws UnknownHostException {
+		/*
+			Override the configuration of the port
+		*/
+		final Config nodeConfig = Consts.CONFIG
+			.withValue("akka.remote.artery.canonical.hostname", ConfigValueFactory.fromAnyRef(getLocalHostLANAddress().getHostAddress()))
+			.withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
+			.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(Collections.singletonList(Consts.NODE_ACTOR_NAME)));
+		/*
+			Create an Akka system
+		*/
+		final ActorSystem system = ActorSystem.create(Consts.SYSTEM_NAME, nodeConfig);
+		/*
+			Create an actor
+		*/
+		system.actorOf(NodeActor.props(), Consts.NODE_ACTOR_NAME);
 	}
 
     public static String GetMemberAddress(Member member, String suffix) {
