@@ -1,6 +1,7 @@
 package actors;
 
 import messages.*;
+import resources.Consts;
 import resources.NodePointer;
 
 import akka.actor.AbstractActor;
@@ -14,6 +15,7 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 
+import java.util.Iterator;
 import java.util.TreeSet;
 
 import scala.concurrent.Await;
@@ -24,12 +26,12 @@ public class SupervisorActor extends AbstractActor {
 
     private final LoggingAdapter log;
     private final Cluster cluster;
-    private TreeSet<NodePointer> leaderNodes;
+    private TreeSet<NodePointer> nodes;
     
 	private SupervisorActor() {
 		log = Logging.getLogger(getContext().getSystem(), this);
 		cluster = Cluster.get(getContext().getSystem());
-		this.leaderNodes = new TreeSet<>();
+		this.nodes = new TreeSet<>();
 	}
 
 	// subscribe to cluster changes
@@ -65,20 +67,27 @@ public class SupervisorActor extends AbstractActor {
 		
 		NodePointer np = new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId());
 		
-		if(!leaderNodes.isEmpty()){
+		if(!nodes.isEmpty()){
 			log.info("SENDING JOIN INIT TO {}", sender());
-			NodePointer successor = (leaderNodes.ceiling(np) != null) ? leaderNodes.ceiling(np) : leaderNodes.first();
+			NodePointer successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
 			JoinInitMsg msg = new JoinInitMsg(successor.getAddress(), successor.getId());
 			sender().tell(msg, ActorRef.noSender());
 		}
 
-		leaderNodes.add(np);
+		nodes.add(np);
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {	
-		NodePointer target = TargetSelection(putMsg.getKey());
-		ActorSelection a = getContext().getSystem().actorSelection(target.getAddress());
-		a.tell(putMsg, ActorRef.noSender());
+		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(putMsg.getKey()), true).iterator();
+
+		for(int i = 0; i < Consts.REPLICATION_FACTOR; i++) {
+			if(!it.hasNext()){
+				it = nodes.iterator();
+			}
+			ActorSelection a = getContext().getSystem().actorSelection(it.next().getAddress());
+			a.tell(putMsg, ActorRef.noSender());
+		}
+				
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
@@ -94,7 +103,7 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
-		for(NodePointer np : leaderNodes){
+		for(NodePointer np : nodes){
 			ActorSelection a = getContext().getSystem().actorSelection(np.getAddress());
 			a.tell(debugMsg, ActorRef.noSender());
 		}
@@ -120,6 +129,6 @@ public class SupervisorActor extends AbstractActor {
 
 	private NodePointer TargetSelection(Integer value) {
 		NodePointer np = new NodePointer("", value);
-		return (leaderNodes.higher(np) != null) ? leaderNodes.higher(np) : leaderNodes.first();
+		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
 	}
 }
