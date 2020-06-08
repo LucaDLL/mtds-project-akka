@@ -16,6 +16,7 @@ import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 
 import java.util.Iterator;
+import java.util.NavigableSet;
 import java.util.TreeSet;
 
 import scala.concurrent.Await;
@@ -66,12 +67,25 @@ public class SupervisorActor extends AbstractActor {
 		log.info("REGISTERING {}", registrationMsg.getMemberAddress());
 		
 		NodePointer np = new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId());
-		
+		NodePointer successor, predecessor;
+
 		if(!nodes.isEmpty()){
-			log.info("SENDING JOIN INIT TO {}", sender());
-			NodePointer successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
-			JoinInitMsg msg = new JoinInitMsg(successor.getAddress(), successor.getId());
-			sender().tell(msg, ActorRef.noSender());
+			successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
+			log.info("SENDING SUCCESSOR {} TO {}", successor, sender());
+			SuccessorMsg sMsg = new SuccessorMsg(successor.getAddress(), successor.getId());
+			sender().tell(sMsg, ActorRef.noSender());
+
+			Iterator<NodePointer> it = (nodes.descendingSet()).headSet(np).iterator();
+			for(int i = 0; i < Consts.REPLICATION_FACTOR - 1; i++) {
+				if(!it.hasNext()){
+					it = nodes.descendingIterator();
+				}
+				predecessor = it.next();
+				log.info("SENDING PREDECESSOR {} TO {}", predecessor, sender());
+
+				PredecessorMsg pMsg = new PredecessorMsg(predecessor.getAddress(), predecessor.getId());
+				sender().tell(pMsg, ActorRef.noSender());
+			}
 		}
 
 		nodes.add(np);
@@ -87,7 +101,6 @@ public class SupervisorActor extends AbstractActor {
 			ActorSelection a = getContext().getSystem().actorSelection(it.next().getAddress());
 			a.tell(putMsg, ActorRef.noSender());
 		}
-				
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {

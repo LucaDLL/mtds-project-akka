@@ -1,18 +1,18 @@
 package messages;
 
-public class JoinInitMsg implements JsonSerializable {
+public class PredecessorMsg implements JsonSerializable {
     
     private final String memberAddress;
     private final Integer memberId;
 
-    public JoinInitMsg(String memberAddress, Integer memberId) {
+    public PredecessorMsg(String memberAddress, Integer memberId) {
         this.memberAddress = memberAddress;
         this.memberId = memberId;
     }
 
     @Override
     public String toString() {
-        return "JoinInitMsg [memberAddress=" + memberAddress + ", memberId=" + memberId + "]";
+        return "PredecessorMsg [memberAddress=" + memberAddress + ", memberId=" + memberId + "]";
     }
 
     public String getMemberAddress() {

@@ -76,6 +76,14 @@ public class NodeActor extends AbstractActor {
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
+	private final void onSuccessorMsg(SuccessorMsg sMsg) {
+		log.warning("SUCCESSOR {}", sMsg);
+	}
+
+	private final void onPredecessorMsg(PredecessorMsg pMsg) {
+		log.warning("PREDECESSOR {}", pMsg);
+	}
+
 	private final void onPutMsg(PutMsg putMsg) {
 		log.warning("{} RECEIVED {}", self().path(), putMsg);
 		map.put(putMsg.getKey(), putMsg.getVal());
@@ -88,6 +96,7 @@ public class NodeActor extends AbstractActor {
 		sender().tell(reply, self());
 	}
 
+	/*
 	private final void onJoinInitMsg(JoinInitMsg joinInitMsg) {
 		ActorSelection a = getContext().getSystem().actorSelection(joinInitMsg.getMemberAddress());
 		MapTransferMsg msg = new MapTransferMsg(selfPointer.getId());
@@ -115,8 +124,8 @@ public class NodeActor extends AbstractActor {
 		for(Map.Entry<Integer,String> entry : joinMap.entrySet()){
 			map.remove(entry.getKey());
 		}
-
 	}
+	*/
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
 		log.warning("NUMBER OF ENTRIES {}", map.size());
@@ -129,10 +138,12 @@ public class NodeActor extends AbstractActor {
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
+			.match(SuccessorMsg.class, this::onSuccessorMsg)
+			.match(PredecessorMsg.class, this::onPredecessorMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
-			.match(JoinInitMsg.class, this::onJoinInitMsg)
-			.match(MapTransferMsg.class, this::onMapTransferMsg)
+			//.match(JoinInitMsg.class, this::onJoinInitMsg)
+			//.match(MapTransferMsg.class, this::onMapTransferMsg)
 			.match(DebugMsg.class, this::onDebugMsg)
 		    .build();
 	}
