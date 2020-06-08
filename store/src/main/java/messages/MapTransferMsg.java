@@ -1,23 +1,25 @@
 package messages;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 public class MapTransferMsg implements JsonSerializable {
     
-    private final Integer id;
+    private final Map<Integer, String> map;
 
     @JsonCreator
-	public MapTransferMsg(Integer id) {
-		this.id = id;
-	}
+    public MapTransferMsg(Map<Integer, String> map) {
+        this.map = map;
+    }
 
-    public Integer getId() {
-        return id;
+    public Map<Integer, String> getMap() {
+        return map;
     }
 
     @Override
     public String toString() {
-        return "MapTransferMsg [id=" + id + "]";
+        return "MapTransferMsg [key=" + map + "]";
     }
-       
+    
 }

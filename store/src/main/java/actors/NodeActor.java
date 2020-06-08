@@ -15,14 +15,9 @@ import akka.cluster.ClusterEvent;
 import akka.cluster.ClusterEvent.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.pattern.Patterns;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
 
 public class NodeActor extends AbstractActor {
 
@@ -77,11 +72,34 @@ public class NodeActor extends AbstractActor {
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
 	private final void onSuccessorMsg(SuccessorMsg sMsg) {
-		log.warning("SUCCESSOR {}", sMsg);
+		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccesssorAddress());
+		SuccessorRequestMsg msg = new SuccessorRequestMsg(selfPointer.getId(), sMsg.getPredecessorId());
+		successor.tell(msg, self());
+	}
+
+	private final void onSuccessorRequestMsg(SuccessorRequestMsg srMsg){
+		final Map<Integer, String> newMap = new HashMap<>();
+
+		for(Map.Entry<Integer,String> entry : map.entrySet()){
+			if(
+				entry.getKey().compareTo(srMsg.getNewPredecessorId()) == -1 && 
+				entry.getKey().compareTo(srMsg.getOldPredecessorId()) == 1
+			){
+				newMap.put(entry.getKey(), entry.getValue());
+			}
+		}
+
+		MapTransferMsg msg = new MapTransferMsg(newMap); 
+		sender().tell(msg, ActorRef.noSender());
+
+		for(Map.Entry<Integer,String> entry : newMap.entrySet()){
+			map.remove(entry.getKey());
+		}
 	}
 
 	private final void onPredecessorMsg(PredecessorMsg pMsg) {
 		log.warning("PREDECESSOR {}", pMsg);
+		//TODO
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
@@ -96,36 +114,10 @@ public class NodeActor extends AbstractActor {
 		sender().tell(reply, self());
 	}
 
-	/*
-	private final void onJoinInitMsg(JoinInitMsg joinInitMsg) {
-		ActorSelection a = getContext().getSystem().actorSelection(joinInitMsg.getMemberAddress());
-		MapTransferMsg msg = new MapTransferMsg(selfPointer.getId());
-
-		final Future<Object> reply = Patterns.ask(a, msg, 1000);
-		try {
-			MapTransferReplyMsg mapTransferReplyMsg = (MapTransferReplyMsg) Await.result(reply, Duration.Inf());
-			map.putAll(mapTransferReplyMsg.getMap());
-		} catch (final Exception e) {
-			log.info("FAILED TRANSFER");
-		}
+	private final void onMapTransferMsg(MapTransferMsg mtMsg) {
+		log.info("UPDATING LOCAL MAP");
+		map.putAll(mtMsg.getMap());
 	}
-
-	private final void onMapTransferMsg(MapTransferMsg mapTransferMsg) {
-		final Map<Integer, String> joinMap = new HashMap<>();
-
-		for(Map.Entry<Integer,String> entry : map.entrySet()){
-			if(entry.getKey().compareTo(mapTransferMsg.getId()) == -1){
-				joinMap.put(entry.getKey(), entry.getValue());
-			}
-		}
-		MapTransferReplyMsg msg = new MapTransferReplyMsg(joinMap); 
-		sender().tell(msg, ActorRef.noSender());
-		
-		for(Map.Entry<Integer,String> entry : joinMap.entrySet()){
-			map.remove(entry.getKey());
-		}
-	}
-	*/
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
 		log.warning("NUMBER OF ENTRIES {}", map.size());
@@ -139,11 +131,11 @@ public class NodeActor extends AbstractActor {
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(SuccessorMsg.class, this::onSuccessorMsg)
+			.match(SuccessorRequestMsg.class, this::onSuccessorRequestMsg)
 			.match(PredecessorMsg.class, this::onPredecessorMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
-			//.match(JoinInitMsg.class, this::onJoinInitMsg)
-			//.match(MapTransferMsg.class, this::onMapTransferMsg)
+			.match(MapTransferMsg.class, this::onMapTransferMsg)
 			.match(DebugMsg.class, this::onDebugMsg)
 		    .build();
 	}

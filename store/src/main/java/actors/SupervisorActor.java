@@ -71,10 +71,14 @@ public class SupervisorActor extends AbstractActor {
 
 		if(!nodes.isEmpty()){
 			successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
-			log.info("SENDING SUCCESSOR {} TO {}", successor, sender());
-			SuccessorMsg sMsg = new SuccessorMsg(successor.getAddress(), successor.getId());
+			predecessor = (nodes.floor(np) != null) ? nodes.floor(np) : nodes.last();
+
+			log.info("SENDING SUCCESSOR MESSAGE TO {}", sender());
+			SuccessorMsg sMsg = new SuccessorMsg(successor.getAddress(), predecessor.getId());
 			sender().tell(sMsg, ActorRef.noSender());
 
+			/*
+			TODO send predecessor messages
 			Iterator<NodePointer> it = (nodes.descendingSet()).headSet(np).iterator();
 			for(int i = 0; i < Consts.REPLICATION_FACTOR - 1; i++) {
 				if(!it.hasNext()){
@@ -86,14 +90,21 @@ public class SupervisorActor extends AbstractActor {
 				PredecessorMsg pMsg = new PredecessorMsg(predecessor.getAddress(), predecessor.getId());
 				sender().tell(pMsg, ActorRef.noSender());
 			}
+			*/
 		}
 
 		nodes.add(np);
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {	
-		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(putMsg.getKey()), true).iterator();
+		NodePointer target = TargetSelection(putMsg.getKey());
+		ActorSelection a = getContext().getSystem().actorSelection(target.getAddress());
+		a.tell(putMsg, ActorRef.noSender());
 
+		/*
+		TODO working implementation for replication 
+		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(putMsg.getKey()), true).iterator();
+		
 		for(int i = 0; i < Consts.REPLICATION_FACTOR; i++) {
 			if(!it.hasNext()){
 				it = nodes.iterator();
@@ -101,6 +112,7 @@ public class SupervisorActor extends AbstractActor {
 			ActorSelection a = getContext().getSystem().actorSelection(it.next().getAddress());
 			a.tell(putMsg, ActorRef.noSender());
 		}
+		*/
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {

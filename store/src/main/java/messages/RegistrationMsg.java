@@ -1,6 +1,7 @@
 package messages;
 
 public class RegistrationMsg implements JsonSerializable {
+    
     private final String memberAddress;
     private final Integer memberId;
 

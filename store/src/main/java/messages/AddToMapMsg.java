@@ -4,12 +4,12 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-public class MapTransferReplyMsg implements JsonSerializable {
+public class AddToMapMsg implements JsonSerializable {
 
     private final Map<Integer, String> map;
 
     @JsonCreator
-    public MapTransferReplyMsg(Map<Integer, String> map) {
+    public AddToMapMsg(Map<Integer, String> map) {
         this.map = map;
     }
 
@@ -19,6 +19,6 @@ public class MapTransferReplyMsg implements JsonSerializable {
 
     @Override
     public String toString() {
-        return "MapTransferReplyMsg [map=" + map + "]";
+        return "AddToMapMsg [map=" + map + "]";
     }
 }
