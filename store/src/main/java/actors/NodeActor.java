@@ -16,7 +16,9 @@ import akka.cluster.ClusterEvent.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class NodeActor extends AbstractActor {
@@ -71,35 +73,50 @@ public class NodeActor extends AbstractActor {
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
-	private final void onSuccessorMsg(SuccessorMsg sMsg) {
-		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccesssorAddress());
-		SuccessorRequestMsg msg = new SuccessorRequestMsg(selfPointer.getId(), sMsg.getPredecessorId());
-		successor.tell(msg, self());
+	private final void onPredecessorMsg(PredecessorMsg pMsg) {
+		ActorSelection predecessor = getContext().getSystem().actorSelection(pMsg.getPredecessorAddress());
+		PredecessorRequestMsg prMsg = new PredecessorRequestMsg(pMsg.getKeysId());
+		predecessor.tell(prMsg, self());
 	}
 
+	private final void onPredecessorRequestMsg(PredecessorRequestMsg prMsg) {
+		MapTransferMsg mtMsg = new MapTransferMsg(MapScan(map, prMsg.getKeysId(), selfPointer.getId())); 
+		sender().tell(mtMsg, ActorRef.noSender());
+	}
+
+	private final void onSuccessorMsg(SuccessorMsg sMsg) {
+		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccessorAddress());
+		SuccessorRequestMsg srMsg = new SuccessorRequestMsg(selfPointer.getId());
+		successor.tell(srMsg, self());
+	}
+	
 	private final void onSuccessorRequestMsg(SuccessorRequestMsg srMsg){
-		final Map<Integer, String> newMap = new HashMap<>();
+		MapTransferMsg mtMsg = new MapTransferMsg(MapScan(map, srMsg.getNewPredecessorId(), selfPointer.getId()));
+		sender().tell(mtMsg, ActorRef.noSender());
+	}
+
+	private final void onCleanOldKeysMsg(CleanOldKeysMsg cMsg){
+		ActorSelection replica = getContext().getSystem().actorSelection(cMsg.getReplicaAddress());
+		CleanOldKeysRequestMsg crMsg = new CleanOldKeysRequestMsg(cMsg.getCleaningId());
+		replica.tell(crMsg, ActorRef.noSender());
+	}
+
+	private final void onCleanOldKeysRequestMsg(CleanOldKeysRequestMsg crMsg){
+		List<Integer> toRemove = new ArrayList<Integer>();
 
 		for(Map.Entry<Integer,String> entry : map.entrySet()){
-			if(
-				entry.getKey().compareTo(srMsg.getNewPredecessorId()) == -1 && 
-				entry.getKey().compareTo(srMsg.getOldPredecessorId()) == 1
-			){
-				newMap.put(entry.getKey(), entry.getValue());
-			}
+			if(!idBelongsToInterval(entry.getKey(), crMsg.getCleaningId(), selfPointer.getId()))
+				toRemove.add(entry.getKey());
 		}
-
-		MapTransferMsg msg = new MapTransferMsg(newMap); 
-		sender().tell(msg, ActorRef.noSender());
-
-		for(Map.Entry<Integer,String> entry : newMap.entrySet()){
-			map.remove(entry.getKey());
+		
+		for(Integer key: toRemove){
+			map.remove(key);
 		}
 	}
 
-	private final void onPredecessorMsg(PredecessorMsg pMsg) {
-		log.warning("PREDECESSOR {}", pMsg);
-		//TODO
+	private final void onMapTransferMsg(MapTransferMsg mtMsg) {
+		log.info("UPDATING LOCAL MAP");
+		map.putAll(mtMsg.getMap());
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
@@ -114,11 +131,6 @@ public class NodeActor extends AbstractActor {
 		sender().tell(reply, self());
 	}
 
-	private final void onMapTransferMsg(MapTransferMsg mtMsg) {
-		log.info("UPDATING LOCAL MAP");
-		map.putAll(mtMsg.getMap());
-	}
-
 	private final void onDebugMsg(DebugMsg debugMsg) {
 		log.warning("NUMBER OF ENTRIES {}", map.size());
 	}
@@ -130,12 +142,15 @@ public class NodeActor extends AbstractActor {
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
+			.match(PredecessorMsg.class, this::onPredecessorMsg)
+			.match(PredecessorRequestMsg.class, this::onPredecessorRequestMsg)
 			.match(SuccessorMsg.class, this::onSuccessorMsg)
 			.match(SuccessorRequestMsg.class, this::onSuccessorRequestMsg)
-			.match(PredecessorMsg.class, this::onPredecessorMsg)
+			.match(CleanOldKeysMsg.class, this::onCleanOldKeysMsg)
+			.match(CleanOldKeysRequestMsg.class, this::onCleanOldKeysRequestMsg)
+			.match(MapTransferMsg.class, this::onMapTransferMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
-			.match(MapTransferMsg.class, this::onMapTransferMsg)
 			.match(DebugMsg.class, this::onDebugMsg)
 		    .build();
 	}

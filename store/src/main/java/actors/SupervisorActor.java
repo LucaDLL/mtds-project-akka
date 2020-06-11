@@ -16,7 +16,6 @@ import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 
 import java.util.Iterator;
-import java.util.NavigableSet;
 import java.util.TreeSet;
 
 import scala.concurrent.Await;
@@ -63,46 +62,58 @@ public class SupervisorActor extends AbstractActor {
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
-	private final void onRegistrationMsg(RegistrationMsg registrationMsg) {
-		log.info("REGISTERING {}", registrationMsg.getMemberAddress());
+	private final void onRegistrationMsg(RegistrationMsg rMsg) {
+		log.info("REGISTERING {}", rMsg.getMemberAddress());
+		NodePointer newNode = new NodePointer(rMsg.getMemberAddress(), rMsg.getMemberId());
 		
-		NodePointer np = new NodePointer(registrationMsg.getMemberAddress(), registrationMsg.getMemberId());
-		NodePointer successor, predecessor;
-
 		if(!nodes.isEmpty()){
-			successor = (nodes.ceiling(np) != null) ? nodes.ceiling(np) : nodes.first();
-			predecessor = (nodes.floor(np) != null) ? nodes.floor(np) : nodes.last();
+			NodePointer reqNodes[] = new NodePointer[2*Consts.REPLICATION_FACTOR + 1];
+			reqNodes[Consts.REPLICATION_FACTOR] = newNode;
+			Iterator<NodePointer> predIt = (nodes.headSet(newNode, false).isEmpty()) ? 
+												nodes.descendingIterator() : 
+												nodes.headSet(newNode, false).descendingIterator();
+			Iterator<NodePointer> succIt = (nodes.tailSet(newNode, false).isEmpty()) ?
+												nodes.iterator() : 
+												nodes.tailSet(newNode, false).iterator();
 
-			log.info("SENDING SUCCESSOR MESSAGE TO {}", sender());
-			SuccessorMsg sMsg = new SuccessorMsg(successor.getAddress(), predecessor.getId());
-			sender().tell(sMsg, ActorRef.noSender());
-
-			/*
-			TODO send predecessor messages
-			Iterator<NodePointer> it = (nodes.descendingSet()).headSet(np).iterator();
-			for(int i = 0; i < Consts.REPLICATION_FACTOR - 1; i++) {
-				if(!it.hasNext()){
-					it = nodes.descendingIterator();
-				}
-				predecessor = it.next();
-				log.info("SENDING PREDECESSOR {} TO {}", predecessor, sender());
-
-				PredecessorMsg pMsg = new PredecessorMsg(predecessor.getAddress(), predecessor.getId());
-				sender().tell(pMsg, ActorRef.noSender());
+			for(int i = 1; i < Consts.REPLICATION_FACTOR + 1; i++){
+				if(!succIt.hasNext())
+					succIt = nodes.iterator();
+				if(!predIt.hasNext())
+					predIt = nodes.descendingIterator();
+				reqNodes[Consts.REPLICATION_FACTOR - i] = predIt.next();
+				reqNodes[Consts.REPLICATION_FACTOR + i] = succIt.next();
 			}
+			/*
+				Data from predecessor
 			*/
+			PredecessorMsg pMsg = new PredecessorMsg(
+										reqNodes[Consts.REPLICATION_FACTOR - 1].getAddress(), 
+										reqNodes[0].getId()
+									);
+			sender().tell(pMsg, ActorRef.noSender());
+			/*
+				Master keys from successor
+			*/
+			SuccessorMsg sMsg = new SuccessorMsg(
+										reqNodes[Consts.REPLICATION_FACTOR + 1].getAddress()
+									);
+			sender().tell(sMsg, ActorRef.noSender());
+			/*
+				Clean old keys in replicas 
+			*/
+			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
+				CleanOldKeysMsg cMsg = new CleanOldKeysMsg(
+											reqNodes[Consts.REPLICATION_FACTOR + 1 + i].getAddress(),
+											reqNodes[1 + i].getId()
+										);
+				sender().tell(cMsg, ActorRef.noSender());
+			}
 		}
-
-		nodes.add(np);
+		nodes.add(newNode);
 	}
 
-	private final void onPutMsg(PutMsg putMsg) {	
-		NodePointer target = TargetSelection(putMsg.getKey());
-		ActorSelection a = getContext().getSystem().actorSelection(target.getAddress());
-		a.tell(putMsg, ActorRef.noSender());
-
-		/*
-		TODO working implementation for replication 
+	private final void onPutMsg(PutMsg putMsg) {
 		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(putMsg.getKey()), true).iterator();
 		
 		for(int i = 0; i < Consts.REPLICATION_FACTOR; i++) {
@@ -112,7 +123,6 @@ public class SupervisorActor extends AbstractActor {
 			ActorSelection a = getContext().getSystem().actorSelection(it.next().getAddress());
 			a.tell(putMsg, ActorRef.noSender());
 		}
-		*/
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {

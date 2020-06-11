@@ -1,4 +1,5 @@
 package resources;
+
 import actors.*;
 
 import akka.actor.ActorSystem;
@@ -9,7 +10,8 @@ import com.typesafe.config.ConfigValueFactory;
 
 import java.util.Collections;
 import java.util.Enumeration;
-
+import java.util.HashMap;
+import java.util.Map;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
@@ -111,4 +113,39 @@ public class Methods {
 	public static int Hash(String value) {
 		return MurmurHash3.hash32x86(value.getBytes());
 	}
+
+	public static boolean idBelongsToInterval(Integer id, Integer first, Integer second) {
+		/*
+			if first < second
+		*/
+		if(Integer.compareUnsigned(first, second) == -1)
+			return Integer.compareUnsigned(id, first) == 1 && Integer.compareUnsigned(id, second) != -1;
+		/*
+			if first == second
+		*/
+		else if(Integer.compareUnsigned(first, second) == 0)
+			return Integer.compareUnsigned(id, first) == 0;
+		/*
+			if first > second
+		*/
+		else{
+			Long newId = new Long(id);
+			Long newFirst = Long.sum(first, Integer.MAX_VALUE);
+			if (Integer.compareUnsigned(id, second) == -1)
+				newId = (long) (id + Integer.MAX_VALUE);
+			return Long.compareUnsigned(newId, second) == 1 && Long.compareUnsigned(newId, newFirst) != -1;
+		}
+	}
+
+	public static Map<Integer, String> MapScan(Map<Integer, String> map, Integer first, Integer second) {
+		final Map<Integer, String> newMap = new HashMap<>();
+
+		for(Map.Entry<Integer,String> entry : map.entrySet()){
+			if(idBelongsToInterval(entry.getKey(), first, second))
+				newMap.put(entry.getKey(), entry.getValue());
+		}
+		
+		return newMap;
+	}	
+
 }

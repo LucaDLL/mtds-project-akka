@@ -2,25 +2,25 @@ package messages;
 
 public class PredecessorMsg implements JsonSerializable {
     
-    private final String memberAddress;
-    private final Integer memberId;
+    private final String predecessorAddress;
+    private final Integer keysId;
 
-    public PredecessorMsg(String memberAddress, Integer memberId) {
-        this.memberAddress = memberAddress;
-        this.memberId = memberId;
+    public PredecessorMsg(String predecessorAddress, Integer keysId) {
+        this.predecessorAddress = predecessorAddress;
+        this.keysId = keysId;
+    }
+
+    public String getPredecessorAddress() {
+        return predecessorAddress;
+    }
+
+    public Integer getKeysId() {
+        return keysId;
     }
 
     @Override
     public String toString() {
-        return "PredecessorMsg [memberAddress=" + memberAddress + ", memberId=" + memberId + "]";
+        return "PredecessorMsg [keysId=" + keysId + ", predecessorAddress=" + predecessorAddress + "]";
     }
-
-    public String getMemberAddress() {
-        return memberAddress;
-    }
-
-    public Integer getMemberId() {
-        return memberId;
-    }
-
+    
 }
