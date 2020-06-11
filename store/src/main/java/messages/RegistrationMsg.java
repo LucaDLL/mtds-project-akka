@@ -1,11 +1,13 @@
 package messages;
 
+import com.google.common.primitives.UnsignedInteger;
+
 public class RegistrationMsg implements JsonSerializable {
     
     private final String memberAddress;
-    private final Integer memberId;
+    private final UnsignedInteger memberId;
 
-    public RegistrationMsg(String memberAddress, Integer memberId) {
+    public RegistrationMsg(String memberAddress, UnsignedInteger memberId) {
         this.memberAddress = memberAddress;
         this.memberId = memberId;
     }
@@ -19,7 +21,7 @@ public class RegistrationMsg implements JsonSerializable {
         return memberAddress;
     }
 
-    public Integer getMemberId() {
+    public UnsignedInteger getMemberId() {
         return memberId;
     }
 }

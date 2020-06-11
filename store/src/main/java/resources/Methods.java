@@ -5,6 +5,9 @@ import actors.*;
 import akka.actor.ActorSystem;
 import akka.cluster.Member;
 
+import com.google.common.primitives.UnsignedInts;
+import com.google.common.primitives.UnsignedInteger;
+import com.google.common.primitives.UnsignedLong;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -110,42 +113,47 @@ public class Methods {
         return new String(member.uniqueAddress().toString());
 	}
 	
-	public static int Hash(String value) {
-		return MurmurHash3.hash32x86(value.getBytes());
+	public static UnsignedInteger Hash(String value) {
+		return UnsignedInteger.valueOf(UnsignedInts.toString(MurmurHash3.hash32x86(value.getBytes())));
 	}
 
-	public static boolean idBelongsToInterval(Integer id, Integer first, Integer second) {
+	public static boolean idBelongsToInterval(UnsignedInteger id, UnsignedInteger first, UnsignedInteger second) {
 		/*
 			if first < second
 		*/
-		if(Integer.compareUnsigned(first, second) == -1)
-			return Integer.compareUnsigned(id, first) == 1 && Integer.compareUnsigned(id, second) != -1;
+		if(first.compareTo(second) == -1) {
+			/*
+				return true if first < id <= second
+			*/
+			return id.compareTo(first) == 1 && id.compareTo(second) != 1;
+		}
 		/*
 			if first == second
 		*/
-		else if(Integer.compareUnsigned(first, second) == 0)
-			return Integer.compareUnsigned(id, first) == 0;
+		else if(first.compareTo(second) == 0){
+			/*
+				return true if id == second
+			*/
+			return id.compareTo(second) == 0;
+		}
 		/*
 			if first > second
 		*/
-		else{
-			Long newId = new Long(id);
-			Long newFirst = Long.sum(first, Integer.MAX_VALUE);
-			if (Integer.compareUnsigned(id, second) == -1)
-				newId = (long) (id + Integer.MAX_VALUE);
-			return Long.compareUnsigned(newId, second) == 1 && Long.compareUnsigned(newId, newFirst) != -1;
+		else {
+			/*
+				newSecond = second + 2^32
+			*/
+			UnsignedLong newId = (id.compareTo(second) == -1) ? 
+									Consts.RING_SIZE.plus(UnsignedLong.valueOf(id.longValue())) : 
+									UnsignedLong.valueOf(id.longValue());
+
+			UnsignedLong newFirst = UnsignedLong.valueOf(first.longValue());
+			UnsignedLong newSecond = Consts.RING_SIZE.plus(UnsignedLong.valueOf(second.longValue()));
+			/*
+				return true if first < id <= second
+			*/
+			return newId.compareTo(newFirst) == 1 && newId.compareTo(newSecond) != 1;
 		}
 	}
-
-	public static Map<Integer, String> MapScan(Map<Integer, String> map, Integer first, Integer second) {
-		final Map<Integer, String> newMap = new HashMap<>();
-
-		for(Map.Entry<Integer,String> entry : map.entrySet()){
-			if(idBelongsToInterval(entry.getKey(), first, second))
-				newMap.put(entry.getKey(), entry.getValue());
-		}
-		
-		return newMap;
-	}	
-
+	
 }

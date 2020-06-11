@@ -2,6 +2,7 @@ package resources;
 
 import resources.Consts;
 
+import com.google.common.primitives.UnsignedLong;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -20,5 +21,7 @@ public class Consts {
 	public static final String NODE_ACTOR_NAME = "NodeActor";
 	public static final String SUPERVISOR_ACTOR_SUFFIX = "/user/SupervisorActor";
 	public static final String NODE_ACTOR_SUFFIX = "/user/NodeActor";
+
+	public static final UnsignedLong RING_SIZE = UnsignedLong.valueOf("4294967296"); //2^32
 	
 }

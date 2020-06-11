@@ -1,11 +1,13 @@
 package messages;
 
+import com.google.common.primitives.UnsignedInteger;
+
 public class CleanOldKeysMsg implements JsonSerializable {
     
     private final String replicaAddress;
-    private final Integer cleaningId;
+    private final UnsignedInteger cleaningId;
 
-    public CleanOldKeysMsg(String replicaAddress, Integer cleaningId) {
+    public CleanOldKeysMsg(String replicaAddress, UnsignedInteger cleaningId) {
         this.replicaAddress = replicaAddress;
         this.cleaningId = cleaningId;
     }
@@ -14,7 +16,7 @@ public class CleanOldKeysMsg implements JsonSerializable {
         return replicaAddress;
     }
 
-    public Integer getCleaningId() {
+    public UnsignedInteger getCleaningId() {
         return cleaningId;
     }
 

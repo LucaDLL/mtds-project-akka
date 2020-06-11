@@ -1,16 +1,18 @@
 package messages;
 
+import com.google.common.primitives.UnsignedInteger;
+
 public class PutMsg implements JsonSerializable {
 
-    private final Integer key;
+    private final UnsignedInteger key;
     private final String val;
 
-    public PutMsg(Integer key, String val){
+    public PutMsg(UnsignedInteger key, String val){
         this.key = key;
         this.val = val;
     }
 
-    public Integer getKey() {
+    public UnsignedInteger getKey() {
         return key;
     }
 

@@ -1,17 +1,18 @@
 package messages;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.primitives.UnsignedInteger;
 
 public class GetMsg implements JsonSerializable {
     
-    private final Integer key;
+    private final UnsignedInteger key;
 
     @JsonCreator
-    public GetMsg(Integer key) {
+    public GetMsg(UnsignedInteger key) {
         this.key = key;
     }
 
-    public Integer getKey() {
+    public UnsignedInteger getKey() {
         return key;
     }
 

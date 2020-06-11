@@ -2,14 +2,16 @@ package resources;
 
 import static resources.Methods.*;
 
+import com.google.common.primitives.UnsignedInteger;
+
 import akka.cluster.Member;
 
 public class NodePointer implements Comparable<NodePointer> {
     
     private String address;
-    private Integer id;
+    private UnsignedInteger id;
     
-    public NodePointer(String address, Integer id) {
+    public NodePointer(String address, UnsignedInteger id) {
         this.address = address;
         this.id = id;
     }
@@ -23,7 +25,7 @@ public class NodePointer implements Comparable<NodePointer> {
         return address;
     }
 
-    public Integer getId() {
+    public UnsignedInteger getId() {
         return id;
     }
 
@@ -31,7 +33,7 @@ public class NodePointer implements Comparable<NodePointer> {
         this.address = address;
     }
 
-    public void setId(Integer id) {
+    public void setId(UnsignedInteger id) {
         this.id = id;
     }
 
@@ -46,7 +48,7 @@ public class NodePointer implements Comparable<NodePointer> {
 
     @Override
     public int compareTo(NodePointer otherPointer){
-        return Integer.compareUnsigned(this.getId(), otherPointer.getId());
+        return this.getId().compareTo(otherPointer.getId());
     }
 
     @Override
@@ -55,7 +57,7 @@ public class NodePointer implements Comparable<NodePointer> {
         int result = 1;
         result = prime * result
                 + ((address == null) ? 0 : address.hashCode());
-        result = prime * result + id;
+        result = prime * result + id.intValue();
         return result;
     }
 

@@ -1,17 +1,18 @@
 package messages;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.primitives.UnsignedInteger;
 
 public class SuccessorRequestMsg implements JsonSerializable {
     
-    private final Integer newPredecessorId;
+    private final UnsignedInteger newPredecessorId;
 	
 	@JsonCreator
-	public SuccessorRequestMsg(Integer newPredecessorId) {
+	public SuccessorRequestMsg(UnsignedInteger newPredecessorId) {
 		this.newPredecessorId = newPredecessorId;
 	}
 
-	public Integer getNewPredecessorId() {
+	public UnsignedInteger getNewPredecessorId() {
 		return newPredecessorId;
 	}
 

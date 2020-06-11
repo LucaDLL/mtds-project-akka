@@ -18,6 +18,8 @@ import akka.pattern.Patterns;
 import java.util.Iterator;
 import java.util.TreeSet;
 
+import com.google.common.primitives.UnsignedInteger;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -84,14 +86,6 @@ public class SupervisorActor extends AbstractActor {
 				reqNodes[Consts.REPLICATION_FACTOR - i] = predIt.next();
 				reqNodes[Consts.REPLICATION_FACTOR + i] = succIt.next();
 			}
-			/*
-				Data from predecessor
-			*/
-			PredecessorMsg pMsg = new PredecessorMsg(
-										reqNodes[Consts.REPLICATION_FACTOR - 1].getAddress(), 
-										reqNodes[0].getId()
-									);
-			sender().tell(pMsg, ActorRef.noSender());
 			/*
 				Master keys from successor
 			*/
@@ -162,7 +156,7 @@ public class SupervisorActor extends AbstractActor {
 		return Props.create(SupervisorActor.class);
 	}
 
-	private NodePointer TargetSelection(Integer value) {
+	private NodePointer TargetSelection(UnsignedInteger value) {
 		NodePointer np = new NodePointer("", value);
 		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
 	}

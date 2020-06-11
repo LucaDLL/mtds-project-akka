@@ -3,17 +3,18 @@ package messages;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.primitives.UnsignedInteger;
 
 public class MapTransferMsg implements JsonSerializable {
     
-    private final Map<Integer, String> map;
+    private final Map<UnsignedInteger, String> map;
 
     @JsonCreator
-    public MapTransferMsg(Map<Integer, String> map) {
+    public MapTransferMsg(Map<UnsignedInteger, String> map) {
         this.map = map;
     }
 
-    public Map<Integer, String> getMap() {
+    public Map<UnsignedInteger, String> getMap() {
         return map;
     }
 

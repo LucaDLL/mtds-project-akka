@@ -21,11 +21,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.primitives.UnsignedInteger;
+
 public class NodeActor extends AbstractActor {
 
 	private final Cluster cluster;
 	private final LoggingAdapter log;
-	private final Map<Integer, String> map;
+	private final Map<UnsignedInteger, String> map;
 	private final NodePointer selfPointer;
 	private ActorSelection supervisor;
 	
@@ -73,17 +75,6 @@ public class NodeActor extends AbstractActor {
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }
 
-	private final void onPredecessorMsg(PredecessorMsg pMsg) {
-		ActorSelection predecessor = getContext().getSystem().actorSelection(pMsg.getPredecessorAddress());
-		PredecessorRequestMsg prMsg = new PredecessorRequestMsg(pMsg.getKeysId());
-		predecessor.tell(prMsg, self());
-	}
-
-	private final void onPredecessorRequestMsg(PredecessorRequestMsg prMsg) {
-		MapTransferMsg mtMsg = new MapTransferMsg(MapScan(map, prMsg.getKeysId(), selfPointer.getId())); 
-		sender().tell(mtMsg, ActorRef.noSender());
-	}
-
 	private final void onSuccessorMsg(SuccessorMsg sMsg) {
 		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccessorAddress());
 		SuccessorRequestMsg srMsg = new SuccessorRequestMsg(selfPointer.getId());
@@ -91,7 +82,14 @@ public class NodeActor extends AbstractActor {
 	}
 	
 	private final void onSuccessorRequestMsg(SuccessorRequestMsg srMsg){
-		MapTransferMsg mtMsg = new MapTransferMsg(MapScan(map, srMsg.getNewPredecessorId(), selfPointer.getId()));
+		final Map<UnsignedInteger, String> newMap = new HashMap<>();
+
+		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
+			if(!idBelongsToInterval(entry.getKey(), srMsg.getNewPredecessorId(), selfPointer.getId()))
+				newMap.put(entry.getKey(), entry.getValue());
+		}
+
+		MapTransferMsg mtMsg = new MapTransferMsg(newMap);
 		sender().tell(mtMsg, ActorRef.noSender());
 	}
 
@@ -102,14 +100,14 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onCleanOldKeysRequestMsg(CleanOldKeysRequestMsg crMsg){
-		List<Integer> toRemove = new ArrayList<Integer>();
+		List<UnsignedInteger> toRemove = new ArrayList<UnsignedInteger>();
 
-		for(Map.Entry<Integer,String> entry : map.entrySet()){
+		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
 			if(!idBelongsToInterval(entry.getKey(), crMsg.getCleaningId(), selfPointer.getId()))
 				toRemove.add(entry.getKey());
 		}
 		
-		for(Integer key: toRemove){
+		for(UnsignedInteger key: toRemove){
 			map.remove(key);
 		}
 	}
@@ -132,7 +130,7 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
-		log.warning("NUMBER OF ENTRIES {}", map.size());
+		log.warning("{} {}", selfPointer.getId(), map.size());
 	}
 
 	@Override
@@ -142,8 +140,6 @@ public class NodeActor extends AbstractActor {
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
-			.match(PredecessorMsg.class, this::onPredecessorMsg)
-			.match(PredecessorRequestMsg.class, this::onPredecessorRequestMsg)
 			.match(SuccessorMsg.class, this::onSuccessorMsg)
 			.match(SuccessorRequestMsg.class, this::onSuccessorRequestMsg)
 			.match(CleanOldKeysMsg.class, this::onCleanOldKeysMsg)

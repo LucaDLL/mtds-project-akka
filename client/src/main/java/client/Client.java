@@ -7,19 +7,21 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 import java.util.concurrent.TimeUnit;
+
 import java.io.File;
 import java.util.Scanner;
 
 class Client {
 	
 	public static void main(String[] args) {
+
 		final ManagedChannel channel = ManagedChannelBuilder.forAddress("192.168.1.174", 9090).usePlaintext().build();
 		final StoreServiceBlockingStub blockingStub = StoreServiceGrpc.newBlockingStub(channel);
 
 		try {
 			if (args[0].equals("init") && args.length == 1) {
-				Scanner keys = new Scanner(new File("src/main/resources/keys.txt"));
-				Scanner values = new Scanner(new File("src/main/resources/values.txt"));
+				Scanner keys = new Scanner(new File("src/main/resources/keysLong.txt"));
+				Scanner values = new Scanner(new File("src/main/resources/valuesLong.txt"));
 				
 				while (keys.hasNext() && values.hasNext()){
 					final String key = keys.next();
