@@ -67,36 +67,37 @@ public class SupervisorActor extends AbstractActor {
 	private final void onRegistrationMsg(RegistrationMsg rMsg) {
 		log.info("REGISTERING {}", rMsg.getMemberAddress());
 		NodePointer newNode = new NodePointer(rMsg.getMemberAddress(), rMsg.getMemberId());
-		
+		nodes.add(newNode);
+
 		if(!nodes.isEmpty()){
-			NodePointer reqNodes[] = new NodePointer[2*Consts.REPLICATION_FACTOR + 1];
-			reqNodes[Consts.REPLICATION_FACTOR] = newNode;
-			Iterator<NodePointer> predIt = (nodes.headSet(newNode, false).isEmpty()) ? 
-												nodes.descendingIterator() : 
-												nodes.headSet(newNode, false).descendingIterator();
+			NodePointer reqNodes[] = new NodePointer[2*Consts.REPLICATION_FACTOR];
+
+			Iterator<NodePointer> predIt = nodes.headSet(newNode, true).descendingIterator();
 			Iterator<NodePointer> succIt = (nodes.tailSet(newNode, false).isEmpty()) ?
 												nodes.iterator() : 
 												nodes.tailSet(newNode, false).iterator();
 
-			for(int i = 1; i < Consts.REPLICATION_FACTOR + 1; i++){
-				if(!succIt.hasNext())
-					succIt = nodes.iterator();
+			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
 				if(!predIt.hasNext())
 					predIt = nodes.descendingIterator();
-				reqNodes[Consts.REPLICATION_FACTOR - i] = predIt.next();
+				if(!succIt.hasNext())
+					succIt = nodes.iterator();
+				
+				reqNodes[Consts.REPLICATION_FACTOR - 1 - i] = predIt.next();
 				reqNodes[Consts.REPLICATION_FACTOR + i] = succIt.next();
 			}
 			/*
 				Master keys from successor
 			*/
 			SuccessorMsg sMsg = new SuccessorMsg(
-										reqNodes[Consts.REPLICATION_FACTOR + 1].getAddress()
+										reqNodes[Consts.REPLICATION_FACTOR].getAddress(),
+										reqNodes[0].getId()
 									);
 			sender().tell(sMsg, ActorRef.noSender());
 			/*
 				Clean old keys in replicas 
 			*/
-			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
+			for(int i = 0; i < Consts.REPLICATION_FACTOR - 1; i++){
 				CleanOldKeysMsg cMsg = new CleanOldKeysMsg(
 											reqNodes[Consts.REPLICATION_FACTOR + 1 + i].getAddress(),
 											reqNodes[1 + i].getId()
@@ -104,7 +105,6 @@ public class SupervisorActor extends AbstractActor {
 				sender().tell(cMsg, ActorRef.noSender());
 			}
 		}
-		nodes.add(newNode);
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
@@ -132,10 +132,19 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
+		Integer tot = 0;
 		for(NodePointer np : nodes){
 			ActorSelection a = getContext().getSystem().actorSelection(np.getAddress());
-			a.tell(debugMsg, ActorRef.noSender());
+			final Future<Object> reply = Patterns.ask(a, debugMsg, 1000);
+			try {
+				DebugReplyMsg debugReplyMsg = (DebugReplyMsg) Await.result(reply, Duration.Inf());
+				tot += debugReplyMsg.getSize();
+			} catch (final Exception e) {
+				log.info("FAILED DEBUG");
+			}
 		}
+		log.warning("TOTAL SIZE {}", tot);
+		sender().tell(new DebugReplyMsg(tot), self());
 	}
 
 	@Override

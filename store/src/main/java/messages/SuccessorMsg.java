@@ -1,14 +1,19 @@
 package messages;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.primitives.UnsignedInteger;
 
 public class SuccessorMsg implements JsonSerializable {
     
     private final String successorAddress;
+    private final UnsignedInteger cleaningId;
 
-    @JsonCreator
-    public SuccessorMsg(String successorAddress) {
+    public SuccessorMsg(String successorAddress, UnsignedInteger cleaningId) {
         this.successorAddress = successorAddress;
+        this.cleaningId = cleaningId;
+    }
+
+    public UnsignedInteger getCleaningId() {
+        return cleaningId;
     }
 
     public String getSuccessorAddress() {
@@ -17,6 +22,7 @@ public class SuccessorMsg implements JsonSerializable {
 
     @Override
     public String toString() {
-        return "SuccessorMsg [successorAddress=" + successorAddress + "]";
+        return "SuccessorMsg [cleaningId=" + cleaningId + ", successorAddress=" + successorAddress + "]";
     }
+ 
 }

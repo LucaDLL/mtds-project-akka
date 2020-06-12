@@ -77,16 +77,23 @@ public class NodeActor extends AbstractActor {
 
 	private final void onSuccessorMsg(SuccessorMsg sMsg) {
 		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccessorAddress());
-		SuccessorRequestMsg srMsg = new SuccessorRequestMsg(selfPointer.getId());
+		SuccessorRequestMsg srMsg = new SuccessorRequestMsg(selfPointer.getId(), sMsg.getCleaningId());
 		successor.tell(srMsg, self());
 	}
 	
 	private final void onSuccessorRequestMsg(SuccessorRequestMsg srMsg){
 		final Map<UnsignedInteger, String> newMap = new HashMap<>();
+		List<UnsignedInteger> toRemove = new ArrayList<UnsignedInteger>();
 
 		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
 			if(!idBelongsToInterval(entry.getKey(), srMsg.getNewPredecessorId(), selfPointer.getId()))
 				newMap.put(entry.getKey(), entry.getValue());
+			if(!idBelongsToInterval(entry.getKey(), srMsg.getCleaningId(), selfPointer.getId()))
+				toRemove.add(entry.getKey());
+		}
+
+		for(UnsignedInteger key: toRemove){
+			map.remove(key);
 		}
 
 		MapTransferMsg mtMsg = new MapTransferMsg(newMap);
@@ -131,6 +138,8 @@ public class NodeActor extends AbstractActor {
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
 		log.warning("{} {}", selfPointer.getId(), map.size());
+		final DebugReplyMsg reply = new DebugReplyMsg(map.size());
+		sender().tell(reply, self());
 	}
 
 	@Override
