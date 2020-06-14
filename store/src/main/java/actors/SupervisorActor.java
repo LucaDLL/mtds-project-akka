@@ -5,6 +5,7 @@ import resources.Consts;
 import resources.NodePointer;
 
 import akka.actor.AbstractActor;
+import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.Props;
@@ -59,7 +60,38 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
-		log.warning("MEMBER {} IS REMOVED", mRemoved.member());
+		NodePointer removedNode = new NodePointer(mRemoved.member());
+		log.warning("MEMBER {} IS REMOVED", removedNode);
+		nodes.remove(removedNode);
+		if(!nodes.isEmpty()){
+			NodePointer reqNodes[] = new NodePointer[2*Consts.REPLICATION_FACTOR];
+
+			Iterator<NodePointer> predIt = (nodes.headSet(removedNode, false).isEmpty()) ?
+												nodes.descendingIterator() : 
+												nodes.headSet(removedNode, false).iterator();
+			Iterator<NodePointer> succIt = (nodes.tailSet(removedNode, false).isEmpty()) ?
+												nodes.iterator() : 
+												nodes.tailSet(removedNode, false).iterator();
+			
+			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
+				if(!predIt.hasNext())
+					predIt = nodes.descendingIterator();
+				if(!succIt.hasNext())
+					succIt = nodes.iterator();
+				
+				reqNodes[Consts.REPLICATION_FACTOR - 1 - i] = predIt.next();
+				reqNodes[Consts.REPLICATION_FACTOR + i] = succIt.next();
+			}
+
+			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
+				ActorSelection a = getContext().getSystem().actorSelection(reqNodes[Consts.REPLICATION_FACTOR + i].getAddress());
+				NodeRemovedMsg nrMsg = new NodeRemovedMsg(
+											reqNodes[Consts.REPLICATION_FACTOR - 1 + i].getAddress(),
+											reqNodes[i].getId()
+										);
+				a.tell(nrMsg, ActorRef.noSender());
+			}
+		}
 	}
 	
 	private final void onMemberEvent(MemberEvent mEvent) { }

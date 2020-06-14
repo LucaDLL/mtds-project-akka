@@ -51,29 +51,16 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onMemberUp(MemberUp mUp) {
-		log.info("MEMBER {} IS UP", mUp.member());
-
 		if(mUp.member().equals(cluster.selfMember())){
-			log.warning("MEMBER {} IS UP", cluster.selfMember());
+			log.warning("MEMBER {} IS UP", selfPointer);
 		}
 
 		if(mUp.member().hasRole(Consts.SUPERVISOR_ACTOR_NAME)){
-			log.info("SENDING REGISTRATION MSG");
 			supervisor = getContext().getSystem().actorSelection(GetMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
 			RegistrationMsg msg = new RegistrationMsg(selfPointer.getAddress(), selfPointer.getId());
 			supervisor.tell(msg, self());
 		}
 	}
-
-	private final void onUnreachableMember(UnreachableMember mUnreachable) {
-		log.info("MEMBER {} DETECTED AS UNREACHABLE", mUnreachable.member());
-	}
-
-	private final void onMemberRemoved(MemberRemoved mRemoved) {
-		log.info("MEMBER {} IS REMOVED", mRemoved.member());
-	}
-	
-	private final void onMemberEvent(MemberEvent mEvent) { }
 
 	private final void onSuccessorMsg(SuccessorMsg sMsg) {
 		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccessorAddress());
@@ -119,6 +106,24 @@ public class NodeActor extends AbstractActor {
 		}
 	}
 
+	private final void onNodeRemovedMsg(NodeRemovedMsg nrMsg) {
+		ActorSelection a = getContext().getSystem().actorSelection(nrMsg.getAddress());
+		NodeRemovedRequestMsg nrrMsg = new NodeRemovedRequestMsg(nrMsg.getKeysId());
+		a.tell(nrrMsg, self());
+	}
+
+	private final void onNodeRemovedRequestMsg(NodeRemovedRequestMsg nrrMsg) {
+		final Map<UnsignedInteger, String> newMap = new HashMap<>();
+
+		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
+			if(!idBelongsToInterval(entry.getKey(), nrrMsg.getKey(), selfPointer.getId()))
+				newMap.put(entry.getKey(), entry.getValue());
+		}
+
+		MapTransferMsg mtMsg = new MapTransferMsg(newMap);
+		sender().tell(mtMsg, ActorRef.noSender());
+	}
+
 	private final void onMapTransferMsg(MapTransferMsg mtMsg) {
 		log.info("UPDATING LOCAL MAP");
 		map.putAll(mtMsg.getMap());
@@ -146,13 +151,12 @@ public class NodeActor extends AbstractActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
-			.match(UnreachableMember.class, this::onUnreachableMember)
-			.match(MemberRemoved.class, this::onMemberRemoved)
-			.match(MemberEvent.class, this::onMemberEvent)
 			.match(SuccessorMsg.class, this::onSuccessorMsg)
 			.match(SuccessorRequestMsg.class, this::onSuccessorRequestMsg)
 			.match(CleanOldKeysMsg.class, this::onCleanOldKeysMsg)
 			.match(CleanOldKeysRequestMsg.class, this::onCleanOldKeysRequestMsg)
+			.match(NodeRemovedMsg.class, this::onNodeRemovedMsg)
+			.match(NodeRemovedRequestMsg.class, this::onNodeRemovedRequestMsg)
 			.match(MapTransferMsg.class, this::onMapTransferMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
