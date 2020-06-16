@@ -83,8 +83,6 @@ public class NodeActor extends AbstractActor {
 					toRemove.add(entry.getKey());
 			}
 			
-			log.warning("{} REMOVES {}", selfPointer.getId(), toRemove);
-
 			for(UnsignedInteger key: toRemove){
 				map.remove(key);
 			}

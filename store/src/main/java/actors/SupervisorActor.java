@@ -60,16 +60,19 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
+		NodePointer unreachableNode = new NodePointer(mUnreachable.member());
 		log.warning("MEMBER {} DETECTED AS UNREACHABLE", mUnreachable.member());
+		nodes.remove(unreachableNode);
 	}
 
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
 		NodePointer removedNode = new NodePointer(mRemoved.member());
-		log.info("MEMBER {} IS REMOVED", removedNode);
+		log.warning("MEMBER {} IS REMOVED", removedNode);
 		nodes.remove(removedNode);
 	}
 	
 	private final void onMemberEvent(MemberEvent mEvent) { 
+		log.warning("Local mEvent logging {}", mEvent);
 	}
 
 	private final void onRegistrationMsg(RegistrationMsg rMsg) {
