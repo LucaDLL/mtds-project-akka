@@ -9,6 +9,7 @@ import static resources.Methods.*;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
+import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -29,6 +30,7 @@ public class NodeActor extends AbstractActor {
 	private final LoggingAdapter log;
 	private final Map<UnsignedInteger, String> map;
 	private final NodePointer selfPointer;
+
 	private ActorSelection supervisor;
 	
 	private NodeActor() {
@@ -56,72 +58,48 @@ public class NodeActor extends AbstractActor {
 		}
 
 		if(mUp.member().hasRole(Consts.SUPERVISOR_ACTOR_NAME)){
-			supervisor = getContext().getSystem().actorSelection(GetMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
+			supervisor = SelectActor(getContext(),GetMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
 			RegistrationMsg msg = new RegistrationMsg(selfPointer.getAddress(), selfPointer.getId());
 			supervisor.tell(msg, self());
 		}
 	}
 
-	private final void onSuccessorMsg(SuccessorMsg sMsg) {
-		ActorSelection successor = getContext().getSystem().actorSelection(sMsg.getSuccessorAddress());
-		SuccessorRequestMsg srMsg = new SuccessorRequestMsg(selfPointer.getId(), sMsg.getCleaningId());
-		successor.tell(srMsg, self());
-	}
-	
-	private final void onSuccessorRequestMsg(SuccessorRequestMsg srMsg){
-		final Map<UnsignedInteger, String> newMap = new HashMap<>();
-		List<UnsignedInteger> toRemove = new ArrayList<UnsignedInteger>();
-
-		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
-			if(!idBelongsToInterval(entry.getKey(), srMsg.getNewPredecessorId(), selfPointer.getId()))
-				newMap.put(entry.getKey(), entry.getValue());
-			if(!idBelongsToInterval(entry.getKey(), srMsg.getCleaningId(), selfPointer.getId()))
-				toRemove.add(entry.getKey());
-		}
-
-		for(UnsignedInteger key: toRemove){
-			map.remove(key);
-		}
-
-		MapTransferMsg mtMsg = new MapTransferMsg(newMap);
-		sender().tell(mtMsg, ActorRef.noSender());
-	}
-
-	private final void onCleanOldKeysMsg(CleanOldKeysMsg cMsg){
-		ActorSelection replica = getContext().getSystem().actorSelection(cMsg.getReplicaAddress());
-		CleanOldKeysRequestMsg crMsg = new CleanOldKeysRequestMsg(cMsg.getCleaningId());
-		replica.tell(crMsg, ActorRef.noSender());
-	}
-
-	private final void onCleanOldKeysRequestMsg(CleanOldKeysRequestMsg crMsg){
-		List<UnsignedInteger> toRemove = new ArrayList<UnsignedInteger>();
-
-		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
-			if(!idBelongsToInterval(entry.getKey(), crMsg.getCleaningId(), selfPointer.getId()))
-				toRemove.add(entry.getKey());
-		}
-		
-		for(UnsignedInteger key: toRemove){
-			map.remove(key);
+	private final void onNewPredecessorMsg (NewPredecessorMsg npMsg) {
+		if(!map.isEmpty()) {
+			MapTransferMsg mtMsg = new MapTransferMsg(MapSelector(map, npMsg.getOldPredId(), npMsg.getPredId())); 
+			ActorSelection a = SelectActor(getContext(), npMsg.getPredAddress());
+			a.tell(mtMsg, ActorRef.noSender());
 		}
 	}
 
-	private final void onNodeRemovedMsg(NodeRemovedMsg nrMsg) {
-		ActorSelection a = getContext().getSystem().actorSelection(nrMsg.getAddress());
-		NodeRemovedRequestMsg nrrMsg = new NodeRemovedRequestMsg(nrMsg.getKeysId());
-		a.tell(nrrMsg, self());
+	private final void onCleanKeysMsg(CleanKeysMsg cMsg) { 
+		if(!map.isEmpty()){
+			log.info("CLEANING OLD KEYS");
+
+			List<UnsignedInteger> toRemove = new ArrayList<UnsignedInteger>();
+
+			for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
+				if(!IdBelongsToInterval(entry.getKey(), cMsg.getCleaningId(), selfPointer.getId()))
+					toRemove.add(entry.getKey());
+			}
+			
+			log.warning("{} REMOVES {}", selfPointer.getId(), toRemove);
+
+			for(UnsignedInteger key: toRemove){
+				map.remove(key);
+			}
+		}
 	}
 
-	private final void onNodeRemovedRequestMsg(NodeRemovedRequestMsg nrrMsg) {
-		final Map<UnsignedInteger, String> newMap = new HashMap<>();
-
-		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
-			if(!idBelongsToInterval(entry.getKey(), nrrMsg.getKey(), selfPointer.getId()))
-				newMap.put(entry.getKey(), entry.getValue());
+	private final void onUpdateSuccessorsMsg(UpdateSuccessorsMsg usMsg) {
+		log.info("UPDATING SUCCESSORS");
+		if(!map.isEmpty()) {
+			MapTransferMsg mtMsg = new MapTransferMsg(MapSelector(map, usMsg.getKeysId(), selfPointer.getId()));
+			for(String succAddress: usMsg.getSuccAddresses()) {
+				ActorSelection a = SelectActor(getContext(), succAddress);
+				a.tell(mtMsg, ActorRef.noSender());
+			}
 		}
-
-		MapTransferMsg mtMsg = new MapTransferMsg(newMap);
-		sender().tell(mtMsg, ActorRef.noSender());
 	}
 
 	private final void onMapTransferMsg(MapTransferMsg mtMsg) {
@@ -151,12 +129,9 @@ public class NodeActor extends AbstractActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
-			.match(SuccessorMsg.class, this::onSuccessorMsg)
-			.match(SuccessorRequestMsg.class, this::onSuccessorRequestMsg)
-			.match(CleanOldKeysMsg.class, this::onCleanOldKeysMsg)
-			.match(CleanOldKeysRequestMsg.class, this::onCleanOldKeysRequestMsg)
-			.match(NodeRemovedMsg.class, this::onNodeRemovedMsg)
-			.match(NodeRemovedRequestMsg.class, this::onNodeRemovedRequestMsg)
+			.match(NewPredecessorMsg.class, this::onNewPredecessorMsg)
+			.match(CleanKeysMsg.class, this::onCleanKeysMsg)
+			.match(UpdateSuccessorsMsg.class, this::onUpdateSuccessorsMsg)
 			.match(MapTransferMsg.class, this::onMapTransferMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)

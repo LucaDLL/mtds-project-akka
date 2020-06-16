@@ -1,8 +1,9 @@
 package resources;
 
 import actors.*;
-
+import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
+import akka.actor.AbstractActor.ActorContext;
 import akka.cluster.Member;
 
 import com.google.common.primitives.UnsignedInts;
@@ -11,10 +12,14 @@ import com.google.common.primitives.UnsignedLong;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
@@ -117,7 +122,16 @@ public class Methods {
 		return UnsignedInteger.valueOf(UnsignedInts.toString(MurmurHash3.hash32x86(value.getBytes())));
 	}
 
-	public static boolean idBelongsToInterval(UnsignedInteger id, UnsignedInteger first, UnsignedInteger second) {
+	public static ActorSelection SelectActor(ActorContext context, String path) {
+		return context.getSystem().actorSelection(path);
+	}
+	
+	public static NodePointer TargetSelection(TreeSet<NodePointer> nodes, UnsignedInteger value) {
+		NodePointer np = new NodePointer("", value);
+		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
+	}
+
+	public static boolean IdBelongsToInterval(UnsignedInteger id, UnsignedInteger first, UnsignedInteger second) {
 		/*
 			if first < second
 		*/
@@ -155,5 +169,45 @@ public class Methods {
 			return newId.compareTo(newFirst) == 1 && newId.compareTo(newSecond) != 1;
 		}
 	}
-	
+
+	public static Map<UnsignedInteger, String> MapSelector(Map<UnsignedInteger, String> map, UnsignedInteger first, UnsignedInteger second) {
+		final Map<UnsignedInteger, String> newMap = new HashMap<>();
+
+		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
+			if(IdBelongsToInterval(entry.getKey(), first, second))
+				newMap.put(entry.getKey(), entry.getValue());
+		}
+		
+		return newMap;
+	}
+
+	public static UnsignedInteger GetCleaningId(TreeSet<NodePointer> nodes, NodePointer np) {
+		Object arr[] = (nodes.headSet(np).isEmpty()) ? nodes.toArray() : nodes.headSet(np).toArray();
+
+		int index = arr.length - Consts.REPLICATION_FACTOR;
+		
+		if(index < 0) {
+			arr = nodes.toArray();
+			return ((NodePointer) arr[arr.length + index - 1]).getId();
+		}
+		else
+			return ((NodePointer) arr[index]).getId();
+	}
+
+	public static UnsignedInteger GetPredId(TreeSet<NodePointer> nodes, NodePointer np) {
+		return (nodes.lower(np) == null) ? nodes.last().getId() : nodes.lower(np).getId();
+	}
+
+	public static List<String> GetSuccAddresses(TreeSet<NodePointer> nodes, NodePointer np) {
+		List<String> succAddresses = new ArrayList<String>();
+		Iterator<NodePointer> it = (nodes.tailSet(np, false).isEmpty()) ? nodes.iterator() : nodes.tailSet(np, false).iterator();
+
+		for(int i = 0; i < Consts.REPLICATION_FACTOR - 1; i++) {
+			if(!it.hasNext())
+				it = nodes.iterator();
+			succAddresses.add(it.next().getAddress());
+		}
+
+		return succAddresses;
+	}
 }

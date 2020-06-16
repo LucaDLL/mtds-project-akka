@@ -1,14 +1,19 @@
 package messages;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+
 import com.google.common.primitives.UnsignedInteger;
 
-public class CleanOldKeysRequestMsg implements JsonSerializable {
+public class CleanKeysMsg implements JsonSerializable {
     
     private final UnsignedInteger cleaningId;
 
     @JsonCreator
-    public CleanOldKeysRequestMsg(UnsignedInteger cleaningId) {
+    public CleanKeysMsg() {
+        this.cleaningId = UnsignedInteger.ZERO;
+    }
+
+    public CleanKeysMsg(UnsignedInteger cleaningId) {
         this.cleaningId = cleaningId;
     }
 
@@ -18,6 +23,7 @@ public class CleanOldKeysRequestMsg implements JsonSerializable {
 
     @Override
     public String toString() {
-        return "CleanOldKeysMsg cleaningId = [" + cleaningId + "]";
+        return "CleanKeysMsg [cleaningId=" + cleaningId + "]";
     }
+
 }

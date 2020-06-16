@@ -4,10 +4,12 @@ import messages.*;
 import resources.Consts;
 import resources.NodePointer;
 
+import static resources.Methods.*;
+
 import akka.actor.AbstractActor;
-import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -29,12 +31,14 @@ public class SupervisorActor extends AbstractActor {
 
     private final LoggingAdapter log;
     private final Cluster cluster;
-    private TreeSet<NodePointer> nodes;
-    
+	private TreeSet<NodePointer> nodes;
+	private ActorRef schedulerActor;
+
 	private SupervisorActor() {
 		log = Logging.getLogger(getContext().getSystem(), this);
 		cluster = Cluster.get(getContext().getSystem());
-		this.nodes = new TreeSet<>();
+		nodes = new TreeSet<>();
+		schedulerActor = getContext().actorOf(SchedulerActor.props(self()), "schedulerActor");
 	}
 
 	// subscribe to cluster changes
@@ -61,112 +65,74 @@ public class SupervisorActor extends AbstractActor {
 
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
 		NodePointer removedNode = new NodePointer(mRemoved.member());
-		log.warning("MEMBER {} IS REMOVED", removedNode);
+		log.info("MEMBER {} IS REMOVED", removedNode);
 		nodes.remove(removedNode);
-		if(!nodes.isEmpty()){
-			NodePointer reqNodes[] = new NodePointer[2*Consts.REPLICATION_FACTOR];
-
-			Iterator<NodePointer> predIt = (nodes.headSet(removedNode, false).isEmpty()) ?
-												nodes.descendingIterator() : 
-												nodes.headSet(removedNode, false).iterator();
-			Iterator<NodePointer> succIt = (nodes.tailSet(removedNode, false).isEmpty()) ?
-												nodes.iterator() : 
-												nodes.tailSet(removedNode, false).iterator();
-			
-			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
-				if(!predIt.hasNext())
-					predIt = nodes.descendingIterator();
-				if(!succIt.hasNext())
-					succIt = nodes.iterator();
-				
-				reqNodes[Consts.REPLICATION_FACTOR - 1 - i] = predIt.next();
-				reqNodes[Consts.REPLICATION_FACTOR + i] = succIt.next();
-			}
-
-			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
-				ActorSelection a = getContext().getSystem().actorSelection(reqNodes[Consts.REPLICATION_FACTOR + i].getAddress());
-				NodeRemovedMsg nrMsg = new NodeRemovedMsg(
-											reqNodes[Consts.REPLICATION_FACTOR - 1 + i].getAddress(),
-											reqNodes[i].getId()
-										);
-				a.tell(nrMsg, ActorRef.noSender());
-			}
-		}
 	}
 	
-	private final void onMemberEvent(MemberEvent mEvent) { }
+	private final void onMemberEvent(MemberEvent mEvent) { 
+	}
 
 	private final void onRegistrationMsg(RegistrationMsg rMsg) {
+
+		getContext().become(schedulerOff());
+
 		log.info("REGISTERING {}", rMsg.getMemberAddress());
 		NodePointer newNode = new NodePointer(rMsg.getMemberAddress(), rMsg.getMemberId());
 		nodes.add(newNode);
 
-		if(!nodes.isEmpty()){
-			NodePointer reqNodes[] = new NodePointer[2*Consts.REPLICATION_FACTOR];
+		NodePointer succ = newNode.equals(nodes.last()) ? nodes.first() : nodes.higher(newNode);
+		UnsignedInteger oldPredId = newNode.equals(nodes.first()) ? nodes.last().getId() : nodes.lower(newNode).getId();
 
-			Iterator<NodePointer> predIt = nodes.headSet(newNode, true).descendingIterator();
-			Iterator<NodePointer> succIt = (nodes.tailSet(newNode, false).isEmpty()) ?
-												nodes.iterator() : 
-												nodes.tailSet(newNode, false).iterator();
+		ActorSelection a = SelectActor(getContext(), succ.getAddress());
+		a.tell(new NewPredecessorMsg(newNode.getAddress(), newNode.getId(),oldPredId), ActorRef.noSender());
 
-			for(int i = 0; i < Consts.REPLICATION_FACTOR; i++){
-				if(!predIt.hasNext())
-					predIt = nodes.descendingIterator();
-				if(!succIt.hasNext())
-					succIt = nodes.iterator();
-				
-				reqNodes[Consts.REPLICATION_FACTOR - 1 - i] = predIt.next();
-				reqNodes[Consts.REPLICATION_FACTOR + i] = succIt.next();
-			}
-			/*
-				Master keys from successor
-			*/
-			SuccessorMsg sMsg = new SuccessorMsg(
-										reqNodes[Consts.REPLICATION_FACTOR].getAddress(),
-										reqNodes[0].getId()
-									);
-			sender().tell(sMsg, ActorRef.noSender());
-			/*
-				Clean old keys in replicas 
-			*/
-			for(int i = 0; i < Consts.REPLICATION_FACTOR - 1; i++){
-				CleanOldKeysMsg cMsg = new CleanOldKeysMsg(
-											reqNodes[Consts.REPLICATION_FACTOR + 1 + i].getAddress(),
-											reqNodes[1 + i].getId()
-										);
-				sender().tell(cMsg, ActorRef.noSender());
+		getContext().become(schedulerOn());
+	}
+
+	private final void onPeriodicMsg(PeriodicMsg pMsg){
+		log.info("PERIODIC");
+		if(!nodes.isEmpty()) {
+			for (NodePointer np : nodes) {
+				ActorSelection a = SelectActor(getContext(), np.getAddress());
+				a.tell(new CleanKeysMsg(GetCleaningId(nodes, np)), ActorRef.noSender());
+				if(Consts.REPLICATION_FACTOR > 1) 
+					a.tell(new UpdateSuccessorsMsg(GetSuccAddresses(nodes, np), GetPredId(nodes,np)), ActorRef.noSender());
 			}
 		}
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
-		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(putMsg.getKey()), true).iterator();
-		
-		for(int i = 0; i < Consts.REPLICATION_FACTOR; i++) {
-			if(!it.hasNext()){
-				it = nodes.iterator();
-			}
-			ActorSelection a = getContext().getSystem().actorSelection(it.next().getAddress());
-			a.tell(putMsg, ActorRef.noSender());
-		}
+		NodePointer target = TargetSelection(nodes, putMsg.getKey());
+		ActorSelection a = SelectActor(getContext(), target.getAddress());
+		a.tell(putMsg, ActorRef.noSender());
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
-		NodePointer target = TargetSelection(getMsg.getKey());
-		ActorSelection a = getContext().getSystem().actorSelection(target.getAddress());
-		final Future<Object> reply = Patterns.ask(a, getMsg, 1000);
-		try {
-			GetReplyMsg getReplyMsg = (GetReplyMsg) Await.result(reply, Duration.Inf());
-			sender().tell(getReplyMsg, self());
-		} catch (final Exception e) {
-			log.info("FAILED GET");
+		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(nodes, getMsg.getKey())).iterator();
+		int tries = Consts.REPLICATION_FACTOR;
+
+		while(tries > 0) {
+			if(!it.hasNext()){
+				it = nodes.iterator();
+			}
+
+			ActorSelection a = SelectActor(getContext(), it.next().getAddress());
+			final Future<Object> reply = Patterns.ask(a, getMsg, 1000);
+			try {
+				GetReplyMsg getReplyMsg = (GetReplyMsg) Await.result(reply, Duration.Inf());
+				sender().tell(getReplyMsg, self());
+				tries = 0;
+			} catch (final Exception e) {
+				log.info("FAILED GET");
+				tries--;
+			}
 		}
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
 		Integer tot = 0;
 		for(NodePointer np : nodes){
-			ActorSelection a = getContext().getSystem().actorSelection(np.getAddress());
+			ActorSelection a = SelectActor(getContext(), np.getAddress());
 			final Future<Object> reply = Patterns.ask(a, debugMsg, 1000);
 			try {
 				DebugReplyMsg debugReplyMsg = (DebugReplyMsg) Await.result(reply, Duration.Inf());
@@ -181,12 +147,28 @@ public class SupervisorActor extends AbstractActor {
 
 	@Override
 	public Receive createReceive() {
+		return schedulerOff();
+	}
+
+	private final Receive schedulerOff() {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
+			.match(DebugMsg.class, this::onDebugMsg)
+		    .build();
+	}
+
+	private final Receive schedulerOn() {
+		return receiveBuilder()
+			.match(MemberUp.class, this::onMemberUp)
+			.match(UnreachableMember.class, this::onUnreachableMember)
+			.match(MemberRemoved.class, this::onMemberRemoved)
+			.match(MemberEvent.class, this::onMemberEvent)
+			.match(RegistrationMsg.class, this::onRegistrationMsg)
+			.match(PeriodicMsg.class, this::onPeriodicMsg)
 		    .match(PutMsg.class, this::onPutMsg)
 			.match(GetMsg.class, this::onGetMsg)
 			.match(DebugMsg.class, this::onDebugMsg)
@@ -195,10 +177,5 @@ public class SupervisorActor extends AbstractActor {
 
 	public static final Props props() {
 		return Props.create(SupervisorActor.class);
-	}
-
-	private NodePointer TargetSelection(UnsignedInteger value) {
-		NodePointer np = new NodePointer("", value);
-		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
 	}
 }

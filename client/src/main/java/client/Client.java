@@ -20,8 +20,8 @@ class Client {
 
 		try {
 			if (args[0].equals("init") && args.length == 1) {
-				Scanner keys = new Scanner(new File("src/main/resources/wordsShort.txt"));
-				Scanner values = new Scanner(new File("src/main/resources/wordsShort.txt"));
+				Scanner keys = new Scanner(new File("src/main/resources/keysShort.txt"));
+				Scanner values = new Scanner(new File("src/main/resources/valuesShort.txt"));
 				
 				while (keys.hasNext() && values.hasNext()){
 					final String key = keys.next();
