@@ -9,7 +9,6 @@ import static resources.Methods.*;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
-import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -43,7 +42,7 @@ public class NodeActor extends AbstractActor {
 	// subscribe to cluster changes
 	@Override
 	public void preStart() {
-		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);
+		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class);
 	}
 
 	// re-subscribe when restart
@@ -82,7 +81,7 @@ public class NodeActor extends AbstractActor {
 				if(!IdBelongsToInterval(entry.getKey(), cMsg.getCleaningId(), selfPointer.getId()))
 					toRemove.add(entry.getKey());
 			}
-			
+
 			for(UnsignedInteger key: toRemove){
 				map.remove(key);
 			}
@@ -111,7 +110,7 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
-		log.warning("{} received {}", self().path(), getMsg);
+		log.warning("{} RECEIVED {}", self().path(), getMsg);
 		final String val = map.get(getMsg.getKey());
 		final GetReplyMsg reply = new GetReplyMsg(val);
 		sender().tell(reply, self());

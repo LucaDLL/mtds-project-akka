@@ -9,7 +9,6 @@ import static resources.Methods.*;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
-import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -44,7 +43,7 @@ public class SupervisorActor extends AbstractActor {
 	// subscribe to cluster changes
 	@Override
 	public void preStart() {
-		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class);
+		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class, ReachableMember.class, UnreachableDataCenter.class);
 	}
 
 	// re-subscribe when restart
@@ -58,11 +57,15 @@ public class SupervisorActor extends AbstractActor {
 			log.warning("MEMBER {} IS UP", cluster.selfMember());
 		}
 	}
-
+	
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
 		NodePointer unreachableNode = new NodePointer(mUnreachable.member());
-		log.warning("MEMBER {} DETECTED AS UNREACHABLE", mUnreachable.member());
-		nodes.remove(unreachableNode);
+		log.warning("MEMBER {} IS UNREACHABLE", unreachableNode);
+		//nodes.remove(unreachableNode);
+	}
+	
+	private final void onReachableMember(ReachableMember rm) {
+		log.warning("MEMBER {} IS REACHABLE", rm.member());
 	}
 
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
@@ -71,8 +74,8 @@ public class SupervisorActor extends AbstractActor {
 		nodes.remove(removedNode);
 	}
 	
-	private final void onMemberEvent(MemberEvent mEvent) { 
-		log.warning("Local mEvent logging {}", mEvent);
+	private final void onMemberEvent(MemberEvent mEvent) {
+
 	}
 
 	private final void onRegistrationMsg(RegistrationMsg rMsg) {
@@ -157,6 +160,8 @@ public class SupervisorActor extends AbstractActor {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
 			.match(UnreachableMember.class, this::onUnreachableMember)
+			.match(ReachableMember.class, this::onReachableMember)
+			.match(UnreachableDataCenter.class, this::onUnreachableDataCenter)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
@@ -168,6 +173,7 @@ public class SupervisorActor extends AbstractActor {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
 			.match(UnreachableMember.class, this::onUnreachableMember)
+			.match(ReachableMember.class, this::onReachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
