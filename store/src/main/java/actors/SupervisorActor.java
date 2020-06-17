@@ -9,6 +9,7 @@ import static resources.Methods.*;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
+import akka.actor.Address;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -32,18 +33,20 @@ public class SupervisorActor extends AbstractActor {
     private final Cluster cluster;
 	private TreeSet<NodePointer> nodes;
 	private ActorRef schedulerActor;
+	private Boolean hasEntries;
 
 	private SupervisorActor() {
 		log = Logging.getLogger(getContext().getSystem(), this);
 		cluster = Cluster.get(getContext().getSystem());
 		nodes = new TreeSet<>();
 		schedulerActor = getContext().actorOf(SchedulerActor.props(self()), "schedulerActor");
+		hasEntries = false;
 	}
 
 	// subscribe to cluster changes
 	@Override
 	public void preStart() {
-		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class, ReachableMember.class);
+		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsSnapshot(), MemberEvent.class, UnreachableMember.class, ReachableMember.class);
 	}
 
 	// re-subscribe when restart
@@ -61,11 +64,7 @@ public class SupervisorActor extends AbstractActor {
 	private final void onUnreachableMember(UnreachableMember mUnreachable) {
 		NodePointer unreachableNode = new NodePointer(mUnreachable.member());
 		log.warning("MEMBER {} IS UNREACHABLE", unreachableNode);
-		//nodes.remove(unreachableNode);
-	}
-	
-	private final void onReachableMember(ReachableMember rm) {
-		log.warning("MEMBER {} IS REACHABLE", rm.member());
+		cluster.down(mUnreachable.member().address());
 	}
 
 	private final void onMemberRemoved(MemberRemoved mRemoved) {
@@ -90,14 +89,14 @@ public class SupervisorActor extends AbstractActor {
 		UnsignedInteger oldPredId = newNode.equals(nodes.first()) ? nodes.last().getId() : nodes.lower(newNode).getId();
 
 		ActorSelection a = SelectActor(getContext(), succ.getAddress());
-		a.tell(new NewPredecessorMsg(newNode.getAddress(), newNode.getId(),oldPredId), ActorRef.noSender());
+		a.tell(new NewPredecessorMsg(newNode.getAddress(), newNode.getId(), oldPredId), ActorRef.noSender());
 
 		getContext().become(schedulerOn());
 	}
 
 	private final void onPeriodicMsg(PeriodicMsg pMsg){
 		log.info("PERIODIC");
-		if(!nodes.isEmpty()) {
+		if(!nodes.isEmpty() && hasEntries) {
 			for (NodePointer np : nodes) {
 				ActorSelection a = SelectActor(getContext(), np.getAddress());
 				a.tell(new CleanKeysMsg(GetCleaningId(nodes, np)), ActorRef.noSender());
@@ -108,6 +107,7 @@ public class SupervisorActor extends AbstractActor {
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
+		if(!hasEntries) hasEntries = true;
 		NodePointer target = TargetSelection(nodes, putMsg.getKey());
 		ActorSelection a = SelectActor(getContext(), target.getAddress());
 		a.tell(putMsg, ActorRef.noSender());
@@ -160,7 +160,6 @@ public class SupervisorActor extends AbstractActor {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
 			.match(UnreachableMember.class, this::onUnreachableMember)
-			.match(ReachableMember.class, this::onReachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
@@ -172,7 +171,6 @@ public class SupervisorActor extends AbstractActor {
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
 			.match(UnreachableMember.class, this::onUnreachableMember)
-			.match(ReachableMember.class, this::onReachableMember)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
