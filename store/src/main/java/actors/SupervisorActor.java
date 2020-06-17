@@ -43,7 +43,7 @@ public class SupervisorActor extends AbstractActor {
 	// subscribe to cluster changes
 	@Override
 	public void preStart() {
-		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class, ReachableMember.class, UnreachableDataCenter.class);
+		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class, UnreachableMember.class, ReachableMember.class);
 	}
 
 	// re-subscribe when restart
@@ -161,7 +161,6 @@ public class SupervisorActor extends AbstractActor {
 			.match(MemberUp.class, this::onMemberUp)
 			.match(UnreachableMember.class, this::onUnreachableMember)
 			.match(ReachableMember.class, this::onReachableMember)
-			.match(UnreachableDataCenter.class, this::onUnreachableDataCenter)
 			.match(MemberRemoved.class, this::onMemberRemoved)
 			.match(MemberEvent.class, this::onMemberEvent)
 			.match(RegistrationMsg.class, this::onRegistrationMsg)
