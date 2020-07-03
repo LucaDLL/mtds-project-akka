@@ -18,14 +18,14 @@ public class StoreServiceImpl implements StoreService {
     
     ActorRef supervisor;
 
-    StoreServiceImpl(ActorRef supervisor) {
+    public StoreServiceImpl(ActorRef supervisor) {
         this.supervisor = supervisor;
     }
 
     @Override
     public CompletionStage<PutReply> put(PutRequest incomingPutRequest){
         
-        PutMsg putMsg = new PutMsg(Hash(incomingPutRequest.getKey()), incomingPutRequest.getValue());
+        PutMsg putMsg = new PutMsg(hash(incomingPutRequest.getKey()), incomingPutRequest.getValue());
         
         supervisor.tell(putMsg,ActorRef.noSender()); 
 
@@ -40,7 +40,7 @@ public class StoreServiceImpl implements StoreService {
     @Override
     public CompletionStage<GetReply> get(GetRequest incomingGetRequest) {
         
-        GetMsg msg = new GetMsg(Hash(incomingGetRequest.getKey()));
+        GetMsg msg = new GetMsg(hash(incomingGetRequest.getKey()));
         GetReply getReply;
 
         final Future<Object> reply = Patterns.ask(supervisor, msg, 1000);

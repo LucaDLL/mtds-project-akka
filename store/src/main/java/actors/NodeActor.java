@@ -57,16 +57,16 @@ public class NodeActor extends AbstractActor {
 		}
 
 		if(mUp.member().hasRole(Consts.SUPERVISOR_ACTOR_NAME)){
-			supervisor = SelectActor(getContext(),GetMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
+			supervisor = selectActor(getContext(),getMemberAddress(mUp.member(), Consts.SUPERVISOR_ACTOR_SUFFIX));
 			RegistrationMsg msg = new RegistrationMsg(selfPointer.getAddress(), selfPointer.getId());
 			supervisor.tell(msg, self());
 		}
 	}
 
-	private final void onNewPredecessorMsg (NewPredecessorMsg npMsg) {
+	private final void onNewPredecessorMsg(NewPredecessorMsg npMsg) {
 		if(!map.isEmpty()) {
-			MapTransferMsg mtMsg = new MapTransferMsg(MapSelector(map, npMsg.getOldPredId(), npMsg.getPredId())); 
-			ActorSelection a = SelectActor(getContext(), npMsg.getPredAddress());
+			MapTransferMsg mtMsg = new MapTransferMsg(mapSelector(map, npMsg.getOldPredId(), npMsg.getPredId())); 
+			ActorSelection a = selectActor(getContext(), npMsg.getPredAddress());
 			a.tell(mtMsg, ActorRef.noSender());
 		}
 	}
@@ -78,7 +78,7 @@ public class NodeActor extends AbstractActor {
 			List<UnsignedInteger> toRemove = new ArrayList<UnsignedInteger>();
 
 			for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
-				if(!IdBelongsToInterval(entry.getKey(), cMsg.getCleaningId(), selfPointer.getId()))
+				if(!idBelongsToInterval(entry.getKey(), cMsg.getCleaningId(), selfPointer.getId()))
 					toRemove.add(entry.getKey());
 			}
 
@@ -91,9 +91,9 @@ public class NodeActor extends AbstractActor {
 	private final void onUpdateSuccessorsMsg(UpdateSuccessorsMsg usMsg) {
 		log.info("UPDATING SUCCESSORS");
 		if(!map.isEmpty()) {
-			MapTransferMsg mtMsg = new MapTransferMsg(MapSelector(map, usMsg.getKeysId(), selfPointer.getId()));
+			MapTransferMsg mtMsg = new MapTransferMsg(mapSelector(map, usMsg.getKeysId(), selfPointer.getId()));
 			for(String succAddress: usMsg.getSuccAddresses()) {
-				ActorSelection a = SelectActor(getContext(), succAddress);
+				ActorSelection a = selectActor(getContext(), succAddress);
 				a.tell(mtMsg, ActorRef.noSender());
 			}
 		}

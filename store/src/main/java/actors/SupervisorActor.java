@@ -9,7 +9,6 @@ import static resources.Methods.*;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
-import akka.actor.Address;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
@@ -73,9 +72,7 @@ public class SupervisorActor extends AbstractActor {
 		nodes.remove(removedNode);
 	}
 	
-	private final void onMemberEvent(MemberEvent mEvent) {
-
-	}
+	private final void onMemberEvent(MemberEvent mEvent) {}
 
 	private final void onRegistrationMsg(RegistrationMsg rMsg) {
 
@@ -88,7 +85,7 @@ public class SupervisorActor extends AbstractActor {
 		NodePointer succ = newNode.equals(nodes.last()) ? nodes.first() : nodes.higher(newNode);
 		UnsignedInteger oldPredId = newNode.equals(nodes.first()) ? nodes.last().getId() : nodes.lower(newNode).getId();
 
-		ActorSelection a = SelectActor(getContext(), succ.getAddress());
+		ActorSelection a = selectActor(getContext(), succ.getAddress());
 		a.tell(new NewPredecessorMsg(newNode.getAddress(), newNode.getId(), oldPredId), ActorRef.noSender());
 
 		getContext().become(schedulerOn());
@@ -98,23 +95,23 @@ public class SupervisorActor extends AbstractActor {
 		log.info("PERIODIC");
 		if(!nodes.isEmpty() && hasEntries) {
 			for (NodePointer np : nodes) {
-				ActorSelection a = SelectActor(getContext(), np.getAddress());
-				a.tell(new CleanKeysMsg(GetCleaningId(nodes, np)), ActorRef.noSender());
+				ActorSelection a = selectActor(getContext(), np.getAddress());
+				a.tell(new CleanKeysMsg(getCleaningId(nodes, np)), ActorRef.noSender());
 				if(Consts.REPLICATION_FACTOR > 1) 
-					a.tell(new UpdateSuccessorsMsg(GetSuccAddresses(nodes, np), GetPredId(nodes,np)), ActorRef.noSender());
+					a.tell(new UpdateSuccessorsMsg(getSuccAddresses(nodes, np), getPredId(nodes,np)), ActorRef.noSender());
 			}
 		}
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
 		if(!hasEntries) hasEntries = true;
-		NodePointer target = TargetSelection(nodes, putMsg.getKey());
-		ActorSelection a = SelectActor(getContext(), target.getAddress());
+		NodePointer target = targetSelection(nodes, putMsg.getKey());
+		ActorSelection a = selectActor(getContext(), target.getAddress());
 		a.tell(putMsg, ActorRef.noSender());
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
-		Iterator<NodePointer> it = nodes.tailSet(TargetSelection(nodes, getMsg.getKey())).iterator();
+		Iterator<NodePointer> it = nodes.tailSet(targetSelection(nodes, getMsg.getKey())).iterator();
 		int tries = Consts.REPLICATION_FACTOR;
 
 		while(tries > 0) {
@@ -122,7 +119,7 @@ public class SupervisorActor extends AbstractActor {
 				it = nodes.iterator();
 			}
 
-			ActorSelection a = SelectActor(getContext(), it.next().getAddress());
+			ActorSelection a = selectActor(getContext(), it.next().getAddress());
 			final Future<Object> reply = Patterns.ask(a, getMsg, 1000);
 			try {
 				GetReplyMsg getReplyMsg = (GetReplyMsg) Await.result(reply, Duration.Inf());
@@ -138,7 +135,7 @@ public class SupervisorActor extends AbstractActor {
 	private final void onDebugMsg(DebugMsg debugMsg) {
 		Integer tot = 0;
 		for(NodePointer np : nodes){
-			ActorSelection a = SelectActor(getContext(), np.getAddress());
+			ActorSelection a = selectActor(getContext(), np.getAddress());
 			final Future<Object> reply = Patterns.ask(a, debugMsg, 1000);
 			try {
 				DebugReplyMsg debugReplyMsg = (DebugReplyMsg) Await.result(reply, Duration.Inf());

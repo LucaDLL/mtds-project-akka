@@ -7,12 +7,12 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 
 import java.time.Duration;
+
 public class SchedulerActor extends AbstractActor {
 	
     private final ActorRef supervisorActor;
 
 	private SchedulerActor(ActorRef supervisorActor) {
-
 		this.supervisorActor = supervisorActor;
 
 		getContext().getSystem().scheduler().scheduleWithFixedDelay(

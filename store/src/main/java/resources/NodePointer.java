@@ -17,8 +17,8 @@ public class NodePointer implements Comparable<NodePointer> {
     }
 
     public NodePointer(Member member) {
-        this.address = GetMemberAddress(member, Consts.NODE_ACTOR_SUFFIX);
-        this.id = Hash(GetMemberUniqueAddress(member));
+        this.address = getMemberAddress(member, Consts.NODE_ACTOR_SUFFIX);
+        this.id = hash(getMemberUniqueAddress(member));
     }
 
     public String getAddress() {

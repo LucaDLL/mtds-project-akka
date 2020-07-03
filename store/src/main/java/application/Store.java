@@ -1,17 +1,11 @@
 package application;
 
 import actors.*;
-import grpc.*;
 import resources.Consts;
 import static resources.Methods.*;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.http.javadsl.*;
-import akka.stream.ActorMaterializer;
-import akka.stream.Materializer;
-
-import java.util.concurrent.CompletionStage;
 
 class Store {
 
@@ -50,21 +44,5 @@ class Store {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
-
-	private static CompletionStage<ServerBinding> run(ActorSystem sys, ActorRef supervisor, String rpcAddress, int rpcPort) throws Exception {
-		Materializer mat = ActorMaterializer.create(sys);
-		/*
-			Instantiate RPC handler
-		*/
-		StoreService impl = new StoreServiceImpl(supervisor);
-		/*
-			Start listening on port
-		*/
-		return Http.get(sys).bindAndHandleAsync(
-			StoreServiceHandlerFactory.create(impl, sys),
-			ConnectHttp.toHost(rpcAddress, rpcPort),
-			mat
-		);
 	}
 }

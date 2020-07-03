@@ -1,10 +1,17 @@
 package resources;
 
 import actors.*;
+import application.StoreServiceImpl;
+import grpc.*;
+
+import akka.actor.AbstractActor.ActorContext;
+import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
-import akka.actor.AbstractActor.ActorContext;
 import akka.cluster.Member;
+import akka.http.javadsl.*;
+import akka.stream.ActorMaterializer;
+import akka.stream.Materializer;
 
 import com.google.common.primitives.UnsignedInts;
 import com.google.common.primitives.UnsignedInteger;
@@ -20,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.concurrent.CompletionStage;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
@@ -89,6 +97,22 @@ public class Methods {
 		return ActorSystem.create(Consts.SYSTEM_NAME, supervisorConfig);
 	}
 
+	public static CompletionStage<ServerBinding> run(ActorSystem sys, ActorRef supervisor, String rpcAddress, int rpcPort) throws Exception {
+		Materializer mat = ActorMaterializer.create(sys);
+		/*
+			Instantiate RPC handler
+		*/
+		StoreService impl = new StoreServiceImpl(supervisor);
+		/*
+			Start listening on port
+		*/
+		return Http.get(sys).bindAndHandleAsync(
+			StoreServiceHandlerFactory.create(impl, sys),
+			ConnectHttp.toHost(rpcAddress, rpcPort),
+			mat
+		);
+	}
+
 	public static void startNode(int port) throws UnknownHostException {
 		/*
 			Override the configuration of the port
@@ -107,31 +131,31 @@ public class Methods {
 		system.actorOf(NodeActor.props(), Consts.NODE_ACTOR_NAME);
 	}
 
-    public static String GetMemberAddress(Member member, String suffix) {
+    public static String getMemberAddress(Member member, String suffix) {
         return new String(member.address().toString() + suffix);
     }
 
-    public static String GetMemberUniqueAddress(Member member) {
+    public static String getMemberUniqueAddress(Member member) {
         /*
             For hashing
         */
         return new String(member.uniqueAddress().toString());
 	}
 	
-	public static UnsignedInteger Hash(String value) {
+	public static UnsignedInteger hash(String value) {
 		return UnsignedInteger.valueOf(UnsignedInts.toString(MurmurHash3.hash32x86(value.getBytes())));
 	}
 
-	public static ActorSelection SelectActor(ActorContext context, String path) {
+	public static ActorSelection selectActor(ActorContext context, String path) {
 		return context.getSystem().actorSelection(path);
 	}
 	
-	public static NodePointer TargetSelection(TreeSet<NodePointer> nodes, UnsignedInteger value) {
+	public static NodePointer targetSelection(TreeSet<NodePointer> nodes, UnsignedInteger value) {
 		NodePointer np = new NodePointer("", value);
 		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
 	}
 
-	public static boolean IdBelongsToInterval(UnsignedInteger id, UnsignedInteger first, UnsignedInteger second) {
+	public static boolean idBelongsToInterval(UnsignedInteger id, UnsignedInteger first, UnsignedInteger second) {
 		/*
 			if first < second
 		*/
@@ -145,10 +169,7 @@ public class Methods {
 			if first == second
 		*/
 		else if(first.compareTo(second) == 0){
-			/*
-				return true if id == second
-			*/
-			return id.compareTo(second) == 0;
+			return false;
 		}
 		/*
 			if first > second
@@ -157,7 +178,7 @@ public class Methods {
 			/*
 				newSecond = second + 2^32
 			*/
-			UnsignedLong newId = (id.compareTo(second) == -1) ? 
+			UnsignedLong newId = (id.compareTo(second) != 1) ? 
 									Consts.RING_SIZE.plus(UnsignedLong.valueOf(id.longValue())) : 
 									UnsignedLong.valueOf(id.longValue());
 
@@ -170,35 +191,38 @@ public class Methods {
 		}
 	}
 
-	public static Map<UnsignedInteger, String> MapSelector(Map<UnsignedInteger, String> map, UnsignedInteger first, UnsignedInteger second) {
+	public static Map<UnsignedInteger, String> mapSelector(Map<UnsignedInteger, String> map, UnsignedInteger first, UnsignedInteger second) {
 		final Map<UnsignedInteger, String> newMap = new HashMap<>();
 
 		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
-			if(IdBelongsToInterval(entry.getKey(), first, second))
+			if(idBelongsToInterval(entry.getKey(), first, second))
 				newMap.put(entry.getKey(), entry.getValue());
 		}
 		
 		return newMap;
 	}
 
-	public static UnsignedInteger GetCleaningId(TreeSet<NodePointer> nodes, NodePointer np) {
-		Object arr[] = (nodes.headSet(np).isEmpty()) ? nodes.toArray() : nodes.headSet(np).toArray();
+	public static UnsignedInteger getCleaningId(TreeSet<NodePointer> nodes, NodePointer np) {
 
-		int index = arr.length - Consts.REPLICATION_FACTOR;
-		
-		if(index < 0) {
+		Object arr[];
+		int index;
+
+		if(nodes.headSet(np).size() < Consts.REPLICATION_FACTOR){
 			arr = nodes.toArray();
-			return ((NodePointer) arr[arr.length + index - 1]).getId();
+			index = arr.length - (Consts.REPLICATION_FACTOR - nodes.headSet(np).size());
+		} else{
+			arr = nodes.headSet(np).toArray();
+			index = arr.length - Consts.REPLICATION_FACTOR;
 		}
-		else
-			return ((NodePointer) arr[index]).getId();
+
+		return ((NodePointer) arr[index]).getId();
 	}
 
-	public static UnsignedInteger GetPredId(TreeSet<NodePointer> nodes, NodePointer np) {
+	public static UnsignedInteger getPredId(TreeSet<NodePointer> nodes, NodePointer np) {
 		return (nodes.lower(np) == null) ? nodes.last().getId() : nodes.lower(np).getId();
 	}
 
-	public static List<String> GetSuccAddresses(TreeSet<NodePointer> nodes, NodePointer np) {
+	public static List<String> getSuccAddresses(TreeSet<NodePointer> nodes, NodePointer np) {
 		List<String> succAddresses = new ArrayList<String>();
 		Iterator<NodePointer> it = (nodes.tailSet(np, false).isEmpty()) ? nodes.iterator() : nodes.tailSet(np, false).iterator();
 

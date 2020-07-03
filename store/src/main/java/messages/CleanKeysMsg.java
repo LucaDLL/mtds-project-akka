@@ -13,6 +13,7 @@ public class CleanKeysMsg implements JsonSerializable {
         this.cleaningId = UnsignedInteger.ZERO;
     }
 
+    @JsonCreator
     public CleanKeysMsg(UnsignedInteger cleaningId) {
         this.cleaningId = cleaningId;
     }
