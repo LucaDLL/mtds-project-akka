@@ -1,0 +1,2 @@
+cd ../store
+mvn clean install

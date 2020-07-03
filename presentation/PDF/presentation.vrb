@@ -1,0 +1,14 @@
+\frametitle{Node IDs}
+\justify
+
+    Each node is identified by a \texttt{NodePointer}.
+
+    \begin{lstlisting}[escapechar=\°]
+class NodePointer {
+    String address = node.clusterAddress;
+    UInt id = hash(node.uniqueAddress);
+}
+    \end{lstlisting}
+
+The same 32 bit hash function is used to obtain key IDs and node IDs.
+
