@@ -26,5 +26,4 @@ public class CleanKeysMsg implements JsonSerializable {
     public String toString() {
         return "CleanKeysMsg [cleaningId=" + cleaningId + "]";
     }
-
 }

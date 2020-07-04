@@ -9,7 +9,9 @@ import akka.actor.Props;
 import java.time.Duration;
 
 public class SchedulerActor extends AbstractActor {
-	
+	/*
+		SchedulerActor sends a message periodically to SupervisorActor. 
+	*/
     private final ActorRef supervisorActor;
 
 	private SchedulerActor(ActorRef supervisorActor) {

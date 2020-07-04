@@ -15,7 +15,9 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
 public class StoreServiceImpl implements StoreService {
-    
+    /* 
+        Receive gRPC requests and convert it to application specific requests.
+    */
     ActorRef supervisor;
 
     public StoreServiceImpl(ActorRef supervisor) {
@@ -24,7 +26,9 @@ public class StoreServiceImpl implements StoreService {
 
     @Override
     public CompletionStage<PutReply> put(PutRequest incomingPutRequest){
-        
+        /*
+            Create a PutMsg using data from the gRPC request, and tell the supervisor.
+        */
         PutMsg putMsg = new PutMsg(hash(incomingPutRequest.getKey()), incomingPutRequest.getValue());
         
         supervisor.tell(putMsg,ActorRef.noSender()); 
@@ -39,7 +43,10 @@ public class StoreServiceImpl implements StoreService {
 
     @Override
     public CompletionStage<GetReply> get(GetRequest incomingGetRequest) {
-        
+        /*
+            Create a GetMsg using data from the gRPC request, and ask the supervisor.
+            The ask pattern is used: if a reply from supervisor is received within 1 second, use its content to send the get result to the client.
+        */
         GetMsg msg = new GetMsg(hash(incomingGetRequest.getKey()));
         GetReply getReply;
 
@@ -58,6 +65,10 @@ public class StoreServiceImpl implements StoreService {
 
     @Override
     public CompletionStage<DebugReply> debug(DebugRequest incomingDebugRequest) {
+        /*
+            Create a DebugMsg, and tell the supervisor.
+            The DebugMsg is used to display the number of keys in the system.
+        */
         supervisor.tell(new DebugMsg(),ActorRef.noSender()); 
         DebugReply DebugMsg = DebugReply.newBuilder().setMessage("Debug").build();
         return CompletableFuture.completedFuture(DebugMsg);

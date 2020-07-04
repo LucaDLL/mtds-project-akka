@@ -9,7 +9,9 @@ import com.typesafe.config.ConfigFactory;
 import java.io.File;
 
 public class Consts {
-
+	/*
+		Constants used throughout the project. 
+	*/
 	public static Config CONFIG = ConfigFactory.parseFile(new File("conf/application.conf"));
 	public static int REPLICATION_FACTOR = 3;
 	public static String RPC_ADDRESS = "192.168.1.174";

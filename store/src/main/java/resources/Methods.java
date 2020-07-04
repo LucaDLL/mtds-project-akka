@@ -37,6 +37,9 @@ import org.apache.commons.codec.digest.MurmurHash3;
 public class Methods {
 
     public static InetAddress getLocalHostLANAddress() throws UnknownHostException {
+		/*
+			Method used to retrieve the local IP address.
+		*/
 		try {
 			InetAddress candidateAddress = null;
 			// Iterate all NICs (network interface cards)...
@@ -132,25 +135,38 @@ public class Methods {
 	}
 
     public static String getMemberAddress(Member member, String suffix) {
+		/*
+			Given a Member of the cluster, return the address used to send messages to it.
+		*/
         return new String(member.address().toString() + suffix);
     }
 
     public static String getMemberUniqueAddress(Member member) {
-        /*
-            For hashing
+		/*
+			Given a Member of the cluster, return its uniqueAddress.
+            This address is used for hashing.
         */
         return new String(member.uniqueAddress().toString());
 	}
 	
 	public static UnsignedInteger hash(String value) {
+		/*
+			The 32-bit version of the MurmurHash3 hash function is used.
+        */
 		return UnsignedInteger.valueOf(UnsignedInts.toString(MurmurHash3.hash32x86(value.getBytes())));
 	}
 
 	public static ActorSelection selectActor(ActorContext context, String path) {
+		/*
+			Given the address of an actor and the context, return the ActorSelection necessary to send messages to it.
+        */
 		return context.getSystem().actorSelection(path);
 	}
 	
 	public static NodePointer targetSelection(TreeSet<NodePointer> nodes, UnsignedInteger value) {
+		/*
+			Given a key, return the NodeActor responsible for it.
+        */
 		NodePointer np = new NodePointer("", value);
 		return (nodes.higher(np) != null) ? nodes.higher(np) : nodes.first();
 	}
@@ -192,6 +208,9 @@ public class Methods {
 	}
 
 	public static Map<UnsignedInteger, String> mapSelector(Map<UnsignedInteger, String> map, UnsignedInteger first, UnsignedInteger second) {
+		/*
+			Given a map of entries, return all the keys that belong to the required interval
+		*/
 		final Map<UnsignedInteger, String> newMap = new HashMap<>();
 
 		for(Map.Entry<UnsignedInteger,String> entry : map.entrySet()){
@@ -203,6 +222,10 @@ public class Methods {
 	}
 
 	public static UnsignedInteger getCleaningId(TreeSet<NodePointer> nodes, NodePointer np) {
+		/*
+			Given a NodePointer, return the ID that, in addition to the NodePointer's own ID, 
+			defines the range of keys that the corresponding NodeActor should store.
+		*/
 
 		Object arr[];
 		int index;
@@ -219,10 +242,16 @@ public class Methods {
 	}
 
 	public static UnsignedInteger getPredId(TreeSet<NodePointer> nodes, NodePointer np) {
+		/*
+			Get the ID of the predecessor of NodePointer np.
+		*/
 		return (nodes.lower(np) == null) ? nodes.last().getId() : nodes.lower(np).getId();
 	}
 
 	public static List<String> getSuccAddresses(TreeSet<NodePointer> nodes, NodePointer np) {
+		/*
+			Get the addresses of the R-1 nodes that follow NodePointer np.
+		*/
 		List<String> succAddresses = new ArrayList<String>();
 		Iterator<NodePointer> it = (nodes.tailSet(np, false).isEmpty()) ? nodes.iterator() : nodes.tailSet(np, false).iterator();
 

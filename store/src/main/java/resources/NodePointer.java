@@ -7,7 +7,11 @@ import com.google.common.primitives.UnsignedInteger;
 import akka.cluster.Member;
 
 public class NodePointer implements Comparable<NodePointer> {
-    
+    /*
+        Each NodePointer identifies a NodeActor.
+        It contains the address of the actor, and its 32 bit ID.
+    */
+
     private String address;
     private UnsignedInteger id;
     

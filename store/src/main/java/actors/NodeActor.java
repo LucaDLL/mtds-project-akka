@@ -24,7 +24,9 @@ import java.util.Map;
 import com.google.common.primitives.UnsignedInteger;
 
 public class NodeActor extends AbstractActor {
-
+	/*
+		Each NodeActor stores a part of the keys.
+	*/
 	private final Cluster cluster;
 	private final LoggingAdapter log;
 	private final Map<UnsignedInteger, String> map;
@@ -39,19 +41,27 @@ public class NodeActor extends AbstractActor {
 		selfPointer = new NodePointer(cluster.selfMember());
 	}
 
-	// subscribe to cluster changes
 	@Override
 	public void preStart() {
+		/*
+			subscribe to cluster changes
+		*/
 		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class);
 	}
 
-	// re-subscribe when restart
+	
 	@Override
 	public void postStop() {
+		/*
+			re-subscribe when restart
+		*/
 		cluster.unsubscribe(getSelf());
 	}
 
 	private final void onMemberUp(MemberUp mUp) {
+		/*
+			If SupervisorActor is up, then notify it that a new NodeActor is up with a RegistrationMsg.
+		*/
 		if(mUp.member().equals(cluster.selfMember())){
 			log.warning("MEMBER {} IS UP", selfPointer);
 		}
@@ -64,6 +74,9 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onNewPredecessorMsg(NewPredecessorMsg npMsg) {
+		/*
+			Send the new predecessor the keys for which it is now responsible of. 
+		*/
 		if(!map.isEmpty()) {
 			MapTransferMsg mtMsg = new MapTransferMsg(mapSelector(map, npMsg.getOldPredId(), npMsg.getPredId())); 
 			ActorSelection a = selectActor(getContext(), npMsg.getPredAddress());
@@ -72,6 +85,9 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onCleanKeysMsg(CleanKeysMsg cMsg) { 
+		/*
+			Delete the keys that you don't have to store anymore.
+		*/
 		if(!map.isEmpty()){
 			log.info("CLEANING OLD KEYS");
 
@@ -89,6 +105,9 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onUpdateSuccessorsMsg(UpdateSuccessorsMsg usMsg) {
+		/*
+			Send the keys for which you are responsible for to your successors.
+		*/
 		log.info("UPDATING SUCCESSORS");
 		if(!map.isEmpty()) {
 			MapTransferMsg mtMsg = new MapTransferMsg(mapSelector(map, usMsg.getKeysId(), selfPointer.getId()));
@@ -100,16 +119,25 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onMapTransferMsg(MapTransferMsg mtMsg) {
+		/*
+			Add the entries to your local map.
+		*/
 		log.info("UPDATING LOCAL MAP");
 		map.putAll(mtMsg.getMap());
 	}
 
 	private final void onPutMsg(PutMsg putMsg) {
+		/*
+			Add the new entry to your local map.
+		*/
 		log.warning("{} RECEIVED {}", self().path(), putMsg);
 		map.put(putMsg.getKey(), putMsg.getVal());
 	}
 
 	private final void onGetMsg(GetMsg getMsg) {
+		/*
+			Check if you have the requested key and reply to the sender.
+		*/
 		log.warning("{} RECEIVED {}", self().path(), getMsg);
 		final String val = map.get(getMsg.getKey());
 		final GetReplyMsg reply = new GetReplyMsg(val);
@@ -117,6 +145,9 @@ public class NodeActor extends AbstractActor {
 	}
 
 	private final void onDebugMsg(DebugMsg debugMsg) {
+		/*
+			Log the size of your current map.
+		*/
 		log.warning("{} {}", selfPointer.getId(), map.size());
 		final DebugReplyMsg reply = new DebugReplyMsg(map.size());
 		sender().tell(reply, self());
@@ -124,6 +155,9 @@ public class NodeActor extends AbstractActor {
 
 	@Override
 	public Receive createReceive() {
+		/*
+			This method defines what messages NodeActor is able to process.
+		*/
 		return receiveBuilder()
 			.match(MemberUp.class, this::onMemberUp)
 			.match(NewPredecessorMsg.class, this::onNewPredecessorMsg)
