@@ -48,7 +48,6 @@ public class NodeActor extends AbstractActor {
 		*/
 		cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(), MemberEvent.class);
 	}
-
 	
 	@Override
 	public void postStop() {

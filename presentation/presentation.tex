@@ -25,6 +25,7 @@
 }
 
 \title{Distributed key-value store in Akka}
+\date{July 28, 2020}
 \author{Luca dell'Oglio}
 \institute{MTDS course, Politecnico di Milano}
 
@@ -55,7 +56,7 @@
 
     \begin{itemize}[label=$\bullet$]
         \item Multiple \texttt{NodeActor}, which store (\texttt{key,value}) pairs;
-        \item A \texttt{SupervisorActor}, which routes the messages to the required \texttt{NodeActor}.
+        \item A \texttt{SupervisorActor}, which routes messages to each \texttt{NodeActor}.
     \end{itemize}
 
 \end{frame}
@@ -101,7 +102,7 @@ The same 32 bit hash function is used to obtain key IDs and node IDs.
 
 \begin{frame}{Implementation} \justify
     
-    \texttt{SupervisorActor} stores the nodes routing information as a \texttt{TreeSet} of \texttt{NodePointer}. The elements of the \texttt{TreeSet} are ordered in ascending order according to the \texttt{id} of each \texttt{NodePointer}.
+    \texttt{SupervisorActor} stores routing information of the nodes as a \texttt{TreeSet} of \texttt{NodePointer}. The elements of the \texttt{TreeSet} are ordered in ascending order of \texttt{NodePointer.id}.
 
     \begin{itemize}[label=$\bullet$]
         \item Adding or removing a node and finding \texttt{succ(k)} are guaranteed to be $O(\log n)$ operations.
@@ -124,34 +125,85 @@ The same 32 bit hash function is used to obtain key IDs and node IDs.
     \end{figure}
 \end{frame}
 
-\begin{frame}{Entries in the new node} \justify
-    
-    \texttt{newNode} has to receive its keys from two nodes:
+\begin{frame}{Node join: new node entries (1)} \justify
+
+    \begin{figure}
+        \includegraphics[width=\linewidth]{01-NodeJoin.png}
+    \end{figure}
+
+    \texttt{newNode} receives the following keys:
 
     \begin{itemize}[label=$\bullet$]
         \item The keys s.t. \texttt{succ(k) = newNode} from its successor (in the example, \texttt{K37, K41} from \texttt{N49});
         
-        \begin{itemize}[label=$\bullet$]
-            \item \texttt{SupervisorActor} sends a \texttt{NewPredecessorMsg} to \texttt{N49}. When \texttt{N49} receives the message, it sends the required keys to \texttt{N41} (i.e., the keys for which \texttt{N41} is now directly responsible for).
-        \end{itemize}
-
-        \item The replica keys from its predecessor (in the example, \texttt{K21, K25, K12} from \texttt{K30}).
-
-        \begin{itemize}[label=$\bullet$]
-            \item See next slide.
-        \end{itemize}
-
+        \item The replica keys from its predecessors (in the example, \texttt{K21, K25} from \texttt{N30}; and \texttt{K12} from \texttt{N14}).
     \end{itemize}
 
 \end{frame}
 
-\begin{frame}{Entries management} \justify
+\begin{frame}{Node join: new node entries (2)} \justify
+
+    \begin{figure}
+        \includegraphics[width=\linewidth]{01-NodeJoin.png}
+    \end{figure}
+
+    The keys s.t. \texttt{succ(k) = newNode} from its successor (in the example, \texttt{K37, K41} from \texttt{N49}).
+        
+    \begin{itemize}[label=$\bullet$]
+        \item \texttt{SupervisorActor} sends a \texttt{NewPredecessorMsg} to \texttt{N49}. When \texttt{N49} receives the message, it sends the required keys to \texttt{N41} (i.e., the keys for which \texttt{N41} is now directly responsible for).
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Node join: new node entries (3)} \justify
+
+    \begin{figure}
+        \includegraphics[width=\linewidth]{01-NodeJoin.png}
+    \end{figure}
+
+    \item The replica keys from its predecessors (in the example, \texttt{K21, K25} from \texttt{N30}; and \texttt{K12} from \texttt{N14}).
+
+    \begin{itemize}[label=$\bullet$]
+        \item See next slide.
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Entries management (1)} \justify
     
     To keep the store consistent, \texttt{SupervisorActor} periodically sends each \texttt{NodeActor} two types of messages: 
 
     \begin{itemize}[label=$\bullet$]
         \item An \texttt{UpdateSuccessorsMsg}. When a \texttt{NodeActor} receives this message, it sends the keys for which it is directly responsible for to the first $R-1$ nodes that follows it.
-        \item A \texttt{CleanKeysMsg}. When a \texttt{NodeActor} receives this message, it deletes any key that doesn't belong to its $R-1$ predecessor or for which it is not directly responsible for.
+        \item A \texttt{CleanKeysMsg}. When a \texttt{NodeActor} receives this message, it deletes any key that doesn't belong to its $R-1$ predecessors or for which it is not directly responsible.
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Node join: new node entries (4)} \justify
+
+    \begin{figure}
+        \includegraphics[width=\linewidth]{01-NodeJoin.png}
+    \end{figure}
+
+    \item The replica keys from its predecessors (in the example, \texttt{K21, K25} from \texttt{N30}; and \texttt{K12} from \texttt{N14}).
+
+    \begin{itemize}[label=$\bullet$]
+        \item An \texttt{UpdateSuccessorsMsg}. When a \texttt{NodeActor} receives this message, it sends the keys for which it is directly responsible for to the first $R-1$ nodes that follows it.
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Entries management (2)} \justify
+
+    \begin{figure}
+        \includegraphics[width=\linewidth]{01-NodeJoin.png}
+    \end{figure}
+
+    The $R$ nodes that follow the new node clean the old keys that they don't have to store anymore. 
+
+    \begin{itemize}[label=$\bullet$]
+        \item A \texttt{CleanKeysMsg}. When a \texttt{NodeActor} receives this message, it deletes any key that doesn't belong to its $R-1$ predecessors or for which it is not directly responsible.
     \end{itemize}
 
 \end{frame}
@@ -161,7 +213,7 @@ The same 32 bit hash function is used to obtain key IDs and node IDs.
 
     \begin{itemize}[label=$\bullet$]
         \item \texttt{SupervisorActor} removes the new node to the \texttt{TreeSet};
-        \item The store eventually becomes consistent again, thanks to the periodic messages.
+        \item The store eventually becomes consistent again, thanks to the \texttt{UpdateSuccessorsMsg} messages.
     \end{itemize}
 
     \begin{figure}
